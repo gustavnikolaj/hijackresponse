@@ -2,6 +2,12 @@
 var expect = require('unexpected')
   .clone()
   .use(require('unexpected-express'))
+  .addAssertion('to yield response', function (expect, subject, value) {
+    return expect(subject, 'to yield exchange', {
+      request: 'GET /',
+      response: value
+    })
+  })
 var express = require('express')
 var hijackResponse = require('../')
 
@@ -27,12 +33,9 @@ describe('Express Integration Tests', function () {
         return res.end('foobar')
       })
 
-    return expect(app, 'to yield exchange', {
-      request: 'GET /',
-      response: {
-        statusCode: 200,
-        body: 'FOOBAR'
-      }
+    return expect(app, 'to yield response', {
+      statusCode: 200,
+      body: 'FOOBAR'
     })
   })
   describe('adapted from express-hijackresponse', function () {
@@ -75,10 +78,7 @@ describe('Express Integration Tests', function () {
           }())
         })
 
-      return expect(app, 'to yield exchange', {
-        request: 'GET /',
-        response: 'foofoofoofoofoobar'
-      })
+      return expect(app, 'to yield response', 'foofoofoofoofoobar')
     })
     it('Create a test server that pipes the original response through a buffered stream, then do a request against it (simple variant)', function () {
       var app = express()
@@ -92,10 +92,7 @@ describe('Express Integration Tests', function () {
           res.send('foo');
         })
 
-      return expect(app, 'to yield exchange', {
-        request: 'GET /',
-        response: 'foo'
-      })
+      return expect(app, 'to yield response', 'foo')
     })
     it('Create a test server that pipes the original response through a buffered stream, then do a request against it (streaming variant)', function () {
       var app = express()
@@ -111,10 +108,7 @@ describe('Express Integration Tests', function () {
           res.end('bar')
         })
 
-      return expect(app, 'to yield exchange', {
-        request: 'GET /',
-        response: 'foobar'
-      })
+      return expect(app, 'to yield response', 'foobar')
     })
     it('Create a test server that hijacks the response and passes an error to next(), then run a request against it', function () {
       // when porting the below test from express-hijackresponse I found the below comment. It seems to be resolved since.
@@ -134,10 +128,7 @@ describe('Express Integration Tests', function () {
         })
         .use(require('errorhandler')({ log: false }))
 
-      return expect(app, 'to yield exchange', {
-        request: 'GET /',
-        response: 500
-      })
+      return expect(app, 'to yield exchange', 500)
     })
     it('Create a test server that hijacks the response and immediately unhijacks it, then run a request against it', function () {
       var app = express()
@@ -151,10 +142,7 @@ describe('Express Integration Tests', function () {
           res.send("foo");
         })
 
-      return expect(app, 'to yield exchange', {
-        request: 'GET /',
-        response: 'foo'
-      })
+      return expect(app, 'to yield response', 'foo')
     })
     it.skip('Create a test server that pauses the original response after each emitted "data" event, then run a request against it', function () {
       // Fails due to pause/resume not being implemented in node 0.10 on the stream we're using
@@ -203,30 +191,27 @@ describe('Express Integration Tests', function () {
           }());
         })
 
-      return expect(app, 'to yield exchange', {
-        request: 'GET /',
-        response: {
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: {
-            events: [
-              'hijack',
-              'foo1',
-              'pause',
-              'resume',
-              'drain',
-              'foo2',
-              'pause',
-              'resume',
-              'drain',
-              'foo3',
-              'pause',
-              'resume',
-              'drain',
-              'end'
-            ]
-          }
+      return expect(app, 'to yield response', {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: {
+          events: [
+            'hijack',
+            'foo1',
+            'pause',
+            'resume',
+            'drain',
+            'foo2',
+            'pause',
+            'resume',
+            'drain',
+            'foo3',
+            'pause',
+            'resume',
+            'drain',
+            'end'
+          ]
         }
       })
     })
