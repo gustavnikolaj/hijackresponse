@@ -9,13 +9,14 @@ var expect = require('unexpected')
     })
   })
 var express = require('express')
+var passError = require('passerror')
 var hijackResponse = require('../')
 
 describe('Express Integration Tests', function () {
   it('simple case', function () {
     var app = express()
       .use(function (req, res, next) {
-        hijackResponse(res, function (err, res) {
+        hijackResponse(res, passError(next, function (res) {
           var chunks = []
           res.on('data', function (chunk) {
             chunks.push(chunk)
@@ -25,7 +26,7 @@ describe('Express Integration Tests', function () {
             res.write(new Buffer(result))
             res.end()
           })
-        })
+        }))
         next()
       })
       .use(function (req, res, next) {
@@ -42,9 +43,9 @@ describe('Express Integration Tests', function () {
     it('Create a test server that pipes the hijacked response into itself, then do a request against it (simple variant)', function () {
       var app = express()
         .use(function (req, res, next) {
-          hijackResponse(res, function (err, res) {
+          hijackResponse(res, passError(next, function (res) {
             res.pipe(res)
-          })
+          }))
           next()
         })
         .use(function (req, res, next) {
@@ -59,15 +60,15 @@ describe('Express Integration Tests', function () {
     it('Create a test server that pipes the hijacked response into itself, then do a request against it (streaming variant)', function () {
       var app = express()
         .use(function (req, res, next) {
-          hijackResponse(res, function (err, res) {
+          hijackResponse(res, passError(next, function (res) {
             res.pipe(res)
-          })
+          }))
           next()
         })
         .use(function (req, res, next) {
           var num = 0
           res.setHeader('Content-Type', 'text/plain')
-          (function proceed() {
+          function proceed () {
             if (num < 5) {
               res.write('foo')
               num += 1
@@ -75,7 +76,8 @@ describe('Express Integration Tests', function () {
             } else {
               res.end('bar')
             }
-          }())
+          }
+          proceed()
         })
 
       return expect(app, 'to yield response', 'foofoofoofoofoobar')
@@ -83,13 +85,13 @@ describe('Express Integration Tests', function () {
     it('Create a test server that pipes the original response through a buffered stream, then do a request against it (simple variant)', function () {
       var app = express()
         .use(function (req, res, next) {
-          hijackResponse(res, function (err, res) {
-            res.pipe(res);
-          });
-          next();
+          hijackResponse(res, passError(next, function (res) {
+            res.pipe(res)
+          }))
+          next()
         })
         .use(function (req, res, next) {
-          res.send('foo');
+          res.send('foo')
         })
 
       return expect(app, 'to yield response', 'foo')
@@ -97,10 +99,10 @@ describe('Express Integration Tests', function () {
     it('Create a test server that pipes the original response through a buffered stream, then do a request against it (streaming variant)', function () {
       var app = express()
         .use(function (req, res, next) {
-          hijackResponse(res, function (err, res) {
-            res.pipe(res);
-          });
-          next();
+          hijackResponse(res, passError(next, function (res) {
+            res.pipe(res)
+          }))
+          next()
         })
         .use(function (req, res, next) {
           res.contentType('text/plain')
@@ -116,15 +118,15 @@ describe('Express Integration Tests', function () {
       // The following test fails with 'callback not called', can't see why
       var app = express()
         .use(function (req, res, next) {
-          hijackResponse(res, function (err, res) {
+          hijackResponse(res, passError(function (res) {
             res.unhijack(function (res) {
-                next(new Error('Error!'));
-            });
-          });
-          next();
+              next(new Error('Error!'))
+            })
+          }))
+          next()
         })
         .use(function (req, res, next) {
-          res.send("foo");
+          res.send('foo')
         })
         .use(require('errorhandler')({ log: false }))
 
@@ -133,13 +135,13 @@ describe('Express Integration Tests', function () {
     it('Create a test server that hijacks the response and immediately unhijacks it, then run a request against it', function () {
       var app = express()
         .use(function (req, res, next) {
-          hijackResponse(res, function (err, res) {
-            res.unhijack(true);
-          });
-          next();
+          hijackResponse(res, passError(next, function (res) {
+            res.unhijack(true)
+          }))
+          next()
         })
         .use(function (req, res, next) {
-          res.send("foo");
+          res.send('foo')
         })
 
       return expect(app, 'to yield response', 'foo')
@@ -149,46 +151,47 @@ describe('Express Integration Tests', function () {
       var events = []
       var app = express()
         .use(function (req, res, next) {
-          events.push("hijack");
-          var isPaused = false;
-          hijackResponse(res, function (err, res) {
+          events.push('hijack')
+          var isPaused = false
+          hijackResponse(res, passError(next, function (res) {
             res.on('data', function (chunk) {
-              events.push(chunk);
+              events.push(chunk)
               if (!isPaused) {
-                isPaused = true;
-                events.push('pause');
-                res.pause();
+                isPaused = true
+                events.push('pause')
+                res.pause()
                 setTimeout(function () {
-                  events.push('resume');
-                  res.resume();
-                  isPaused = false;
-                }, 2);
+                  events.push('resume')
+                  res.resume()
+                  isPaused = false
+                }, 2)
               }
             }).on('end', function () {
-              events.push('end');
-              res.send({events: events});
-            });
-          });
-          next();
+              events.push('end')
+              res.send({events: events})
+            })
+          }))
+          next()
         })
         .use(function (req, res, next) {
-          var num = 0;
-          (function proceed() {
+          var num = 0
+          function proceed () {
             if (num < 3) {
-              num += 1;
-              var isPaused = !res.write('foo' + num);
+              num += 1
+              var isPaused = !res.write('foo' + num)
               if (isPaused) {
                 res.once('drain', function () {
-                  events.push('drain');
-                  proceed();
-                });
+                  events.push('drain')
+                  proceed()
+                })
               } else {
-                process.nextTick(proceed);
+                process.nextTick(proceed)
               }
             } else {
-              res.end();
+              res.end()
             }
-          }());
+          }
+          proceed()
         })
 
       return expect(app, 'to yield response', {
