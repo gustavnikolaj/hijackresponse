@@ -84,9 +84,7 @@ describe('Express Integration Tests', function () {
       var app = express()
         .use(function (req, res, next) {
           hijackResponse(res, function (err, res) {
-            var bufferedStream = new (require('bufferedstream'))();
-            res.pipe(bufferedStream);
-            bufferedStream.pipe(res);
+            res.pipe(res);
           });
           next();
         })
@@ -100,27 +98,22 @@ describe('Express Integration Tests', function () {
       })
     })
     it('Create a test server that pipes the original response through a buffered stream, then do a request against it (streaming variant)', function () {
-      // When porting this test from express-hijackresponse I found the comment below. But it turns out that the test works now, using node 0.10.38
-      // ----
-      // The below test fails because Stream.prototype.pipe tears down the pipe when the destination stream emits the 'end' event.
-      // There are plans to fix this as part of the streams2 effort: https://github.com/joyent/node/pull/2524
       var app = express()
         .use(function (req, res, next) {
           hijackResponse(res, function (err, res) {
-            var bufferedStream = new (require('bufferedstream'))();
-            res.pipe(bufferedStream);
-            bufferedStream.pipe(res);
+            res.pipe(res);
           });
           next();
         })
         .use(function (req, res, next) {
           res.contentType('text/plain')
-          res.end('bar');
+          res.write('foo')
+          res.end('bar')
         })
 
       return expect(app, 'to yield exchange', {
         request: 'GET /',
-        response: 'bar'
+        response: 'foobar'
       })
     })
     it('Create a test server that hijacks the response and passes an error to next(), then run a request against it', function () {

@@ -4,7 +4,6 @@
   "description": "Hijack HttpResponses",
   "main": "lib/hijackResponse.js",
   "devDependencies": {
-    "bufferedstream": "3.1.1",
     "errorhandler": "1.4.2",
     "express": "4.13.3",
     "magicpen-media": "1.5.1",
