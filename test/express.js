@@ -52,10 +52,7 @@ describe('Express Integration Tests', function () {
           res.send('foo')
         })
 
-      return expect(app, 'to yield exchange', {
-        request: 'GET /',
-        response: 'foo'
-      })
+      return expect(app, 'to yield response', 'foo')
     })
     it('Create a test server that pipes the hijacked response into itself, then do a request against it (streaming variant)', function () {
       var app = express()
@@ -86,7 +83,9 @@ describe('Express Integration Tests', function () {
       var app = express()
         .use(function (req, res, next) {
           hijackResponse(res, passError(next, function (res) {
-            res.pipe(res)
+            var bufferedStream = new (require('bufferedstream'))()
+            res.pipe(bufferedStream)
+            bufferedStream.pipe(res)
           }))
           next()
         })
@@ -100,7 +99,9 @@ describe('Express Integration Tests', function () {
       var app = express()
         .use(function (req, res, next) {
           hijackResponse(res, passError(next, function (res) {
-            res.pipe(res)
+            var bufferedStream = new (require('bufferedstream'))()
+            res.pipe(bufferedStream)
+            bufferedStream.pipe(res)
           }))
           next()
         })
@@ -130,7 +131,7 @@ describe('Express Integration Tests', function () {
         })
         .use(require('errorhandler')({ log: false }))
 
-      return expect(app, 'to yield exchange', 500)
+      return expect(app, 'to yield response', 500)
     })
     it('Create a test server that hijacks the response and immediately unhijacks it, then run a request against it', function () {
       var app = express()
