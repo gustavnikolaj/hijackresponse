@@ -114,9 +114,6 @@ describe('Express Integration Tests', function () {
       return expect(app, 'to yield response', 'foobar')
     })
     it('Create a test server that hijacks the response and passes an error to next(), then run a request against it', function () {
-      // when porting the below test from express-hijackresponse I found the below comment. It seems to be resolved since.
-      // ---
-      // The following test fails with 'callback not called', can't see why
       var app = express()
         .use(function (req, res, next) {
           hijackResponse(res, passError(function (res) {
