@@ -7,6 +7,7 @@
     "bufferedstream": "3.1.1",
     "errorhandler": "1.4.2",
     "express": "4.13.3",
+    "istanbul": "0.3.20",
     "lodash": "3.10.1",
     "magicpen-media": "1.5.1",
     "messy": "6.6.1",
@@ -18,8 +19,9 @@
     "unexpected-messy": "4.8.0"
   },
   "scripts": {
-    "test": "mocha",
-    "lint": "standard"
+    "coverage": "istanbul --include-all-sources cover _mocha",
+    "lint": "standard",
+    "test": "mocha"
   },
   "repository": {
     "type": "git",
