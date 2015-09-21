@@ -94,4 +94,107 @@ describe('hijackResponse', function () {
       tick()
     }, 'to yield response', 'foofoofoofoofoobarbazqux')
   })
+
+
+
+
+
+  var debug = require('debug')
+  function StreamSnitch(name) {
+    var debug = require('debug')('snitch:'+name)
+    var Transform = require('stream').Transform
+    var snitch = new Transform({highWaterMark: 0})
+    snitch._transform = function (chunk, encoding, next) {
+      debug('passing on: %s', chunk && chunk.toString().replace(/\n/g, '\\n') || chunk)
+      next(null, chunk)
+    }
+    return snitch
+  }
+
+  it('should support backpreassure working with a good stream', function () {
+    // This test aims to force the bastardized readable stream that is the
+    // hijackedResponse to buffer up to it's highWaterMark, and not any further
+    // and do multiple drains etc during the test. That is achieved by setting
+    // the same highWaterMark on both the fs.ReadStream, the delayed Transform
+    // stream and the hijackedResponse it self.
+
+    var bufferMax = 0
+    var drains = 0
+    var highWaterMark = 100
+    var streamOptions = { highWaterMark: highWaterMark }
+
+    var filePath = require('path').resolve(__dirname, '..', 'package.json')
+    var readStream = require('fs').createReadStream(filePath, streamOptions)
+
+    var Transform = require('stream').Transform
+    var delayedIdentityStream = new Transform(streamOptions)
+
+    return expect(function (res, handleError) {
+      hijackResponse(res, passError(handleError, function (res) {
+        delayedIdentityStream._transform = function (chunk, encoding, cb) {
+          setTimeout(function () {
+            bufferMax = Math.max(bufferMax, res._readableState.length)
+            cb(null, chunk)
+          }, 1)
+        }
+
+        res.pipe(delayedIdentityStream).pipe(res)
+      }), streamOptions)
+
+      res.on('drain', function () { drains += 1 })
+      readStream.pipe(res)
+    }, 'to yield response', 200).then(function (res) {
+      return expect(bufferMax, 'to equal', highWaterMark)
+    }).then(function () {
+      return expect(drains, 'to be greater than', 0)
+    })
+  })
+
+  it('should support backpreassure working with a bad stream', function () {
+    // This test aims to force the bastardized readable stream that is the
+    // hijackedResponse to buffer up everything that has been written to it,
+    // and try to support backpressure for the downstream-streams
+
+    var drains = 0
+    var highWaterMark = 5
+    var streamOptions = { highWaterMark: highWaterMark }
+
+    var stream = require('stream')
+
+    var mockedReadStream = new stream.Readable()
+    mockedReadStream._read = function () {}
+
+    var delayedIdentityStream = new stream.Transform(streamOptions)
+
+    return expect(function (res, handleError) {
+      hijackResponse(res, passError(handleError, function (res) {
+        delayedIdentityStream._transform = function (chunk, encoding, cb) {
+          setTimeout(function () {
+            cb(null, chunk)
+          }, 3)
+        }
+        res.pipe(delayedIdentityStream).pipe(res)
+      }), streamOptions)
+
+      res.setHeader('Content-Type', 'text/plain')
+      res.on('drain', function () { drains += 1 })
+
+      res.write('foo 12345\n')
+      res.write('bar 12345\n')
+      res.write('baz 12345\n')
+      res.write('qux 12345\n')
+      res.end()
+
+    }, 'to yield response', {
+      body: [
+        'foo 12345',
+        'bar 12345',
+        'baz 12345',
+        'qux 12345',
+        ''
+      ].join('\n')
+    }).then(function () {
+      return expect(drains, 'to be greater than', 0)
+    })
+  })
 })
