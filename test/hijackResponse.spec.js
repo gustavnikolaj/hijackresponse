@@ -250,4 +250,50 @@ describe('hijackResponse', function () {
       }, 'to yield response', 'foobar')
     })
   })
+  describe('res.write', function () {
+    it('should work when called with a buffer', function () {
+      return expect(function (res, handleError) {
+        hijackResponse(res, passError(handleError, function (res) {
+          res.pipe(res)
+        }))
+
+        res.setHeader('content-type', 'text/plain')
+        res.write(new Buffer('foobar', 'utf-8'))
+        res.end()
+      }, 'to yield response', 'foobar')
+    })
+    it('should work when called with null', function () {
+      return expect(function (res, handleError) {
+        hijackResponse(res, passError(handleError, function (res) {
+          res.pipe(res)
+        }))
+
+        res.setHeader('content-type', 'text/plain')
+        res.write(new Buffer('foobar', 'utf-8'))
+        res.write(null)
+      }, 'to yield response', 'foobar')
+    })
+    it('should work when called with a string', function () {
+      return expect(function (res, handleError) {
+        hijackResponse(res, passError(handleError, function (res) {
+          res.pipe(res)
+        }))
+
+        res.setHeader('content-type', 'text/plain')
+        res.write('foobar')
+        res.end()
+      }, 'to yield response', 'foobar')
+    })
+    it('should work when called with a string and an encoding', function () {
+      return expect(function (res, handleError) {
+        hijackResponse(res, passError(handleError, function (res) {
+          res.pipe(res)
+        }))
+
+        res.setHeader('content-type', 'text/plain')
+        res.write('foobar', 'utf-8')
+        res.end()
+      }, 'to yield response', 'foobar')
+    })
+  })
 })
