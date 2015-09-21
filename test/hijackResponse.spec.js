@@ -134,10 +134,10 @@ describe('hijackResponse', function () {
     })
   })
 
-  it('should support backpreassure working with a bad stream', function () {
+  it('should support backpreassure working with an old stream', function () {
     // This test aims to force the bastardized readable stream that is the
-    // hijackedResponse to buffer up everything that has been written to it,
-    // and try to support backpressure for the downstream-streams
+    // hijackedResponse to buffer up everything that has been written to it
+    // and play nicely with new downstream streams
 
     var drains = 0
     var highWaterMark = 5
@@ -145,14 +145,17 @@ describe('hijackResponse', function () {
 
     var stream = require('stream')
 
-    var mockedReadStream = new stream.Readable()
-    mockedReadStream._read = function () {}
+    var onTransformBufferLenghts = []
 
     var delayedIdentityStream = new stream.Transform(streamOptions)
 
     return expect(function (res, handleError) {
       hijackResponse(res, passError(handleError, function (res) {
         delayedIdentityStream._transform = function (chunk, encoding, cb) {
+          onTransformBufferLenghts.push({
+            hijacked: res._readableState.length,
+            delayed: this._readableState.length
+          })
           setTimeout(function () {
             cb(null, chunk)
           }, 3)
@@ -163,12 +166,16 @@ describe('hijackResponse', function () {
       res.setHeader('Content-Type', 'text/plain')
       res.on('drain', function () { drains += 1 })
 
-      res.write('foo 12345\n')
-      res.write('bar 12345\n')
-      res.write('baz 12345\n')
-      res.write('qux 12345\n')
-      res.end()
+      var mockedReadStream = new stream.Stream()
+      mockedReadStream.readable = true
 
+      mockedReadStream.pipe(res)
+
+      mockedReadStream.emit('data', 'foo 12345\n')
+      mockedReadStream.emit('data', 'bar 12345\n')
+      mockedReadStream.emit('data', 'baz 12345\n')
+      mockedReadStream.emit('data', 'qux 12345\n')
+      mockedReadStream.emit('end')
     }, 'to yield response', {
       body: [
         'foo 12345',
@@ -179,6 +186,25 @@ describe('hijackResponse', function () {
       ].join('\n')
     }).then(function () {
       return expect(drains, 'to be greater than', 0)
+    }).then(function () {
+      onTransformBufferLenghts.forEach(function (obj, i, arr) {
+        if (i + 1 === arr.length) {
+          return expect(obj, 'to satisfy', {
+            hijacked: 0,
+            delayed: 0
+          })
+        } else if (i === 0) {
+          return expect(obj, 'to satisfy', {
+            hijacked: expect.it('to be greater than', 0),
+            delayed: 0
+          })
+        } else {
+          return expect(obj, 'to satisfy', {
+            hijacked: expect.it('to be less than', arr[i - 1].hijacked),
+            delayed: 0
+          })
+        }
+      })
     })
   })
   it('should write the last chunk', function () {
