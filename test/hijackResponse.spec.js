@@ -181,4 +181,14 @@ describe('hijackResponse', function () {
       return expect(drains, 'to be greater than', 0)
     })
   })
+  it('should write the last chunk', function () {
+    return expect(function (res, handleError) {
+      hijackResponse(res, passError(handleError, function (res) {
+        res.end('foobar')
+      }))
+
+      res.setHeader('content-type', 'text/plain')
+      res.writeHead(200)
+    }, 'to yield response', 'foobar')
+  })
 })
