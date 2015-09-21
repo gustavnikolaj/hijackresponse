@@ -191,4 +191,37 @@ describe('hijackResponse', function () {
       res.writeHead(200)
     }, 'to yield response', 'foobar')
   })
+  describe('res.writeHead should trigger the hijackResponse callback', function () {
+    it('when called without anything', function () {
+      return expect(function (res, handleError) {
+        hijackResponse(res, passError(handleError, function (res) {
+          res.end('foobar')
+        }))
+
+        res.setHeader('content-type', 'text/plain')
+        res.writeHead()
+      }, 'to yield response', 'foobar')
+    })
+    it('when called with only a status code', function () {
+      return expect(function (res, handleError) {
+        hijackResponse(res, passError(handleError, function (res) {
+          res.end('foobar')
+        }))
+
+        res.setHeader('content-type', 'text/plain')
+        res.writeHead(200)
+      }, 'to yield response', 'foobar')
+    })
+    it('when called with status code and headers', function () {
+      return expect(function (res, handleError) {
+        hijackResponse(res, passError(handleError, function (res) {
+          res.end('foobar')
+        }))
+
+        res.writeHead(200, {
+          'content-type': 'text/plain'
+        })
+      }, 'to yield response', 'foobar')
+    })
+  })
 })
