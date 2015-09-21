@@ -35,4 +35,29 @@ describe('hijackResponse', function () {
       res.end()
     }, 'to yield response', 'foobar')
   })
+  it('should be able to hijack an already hijacked response', function () {
+    return expect(function (res, handleError) {
+      hijackResponse(res, passError(handleError, function (res) {
+        hijackResponse(res, passError(handleError, function (res) {
+            res.on('data', function (chunk) {
+              res.write(chunk)
+            }).on('end', function () {
+              res.write('qux')
+              res.end()
+            })
+        }))
+
+        res.on('data', function (chunk) {
+          res.write(chunk)
+        }).on('end', function () {
+          res.write('bar')
+          res.end()
+        })
+      }))
+
+      res.setHeader('Content-Type', 'text/plain')
+      res.write('foo')
+      res.end()
+    }, 'to yield response', 'foobarqux')
+  })
 })
