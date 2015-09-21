@@ -296,4 +296,14 @@ describe('hijackResponse', function () {
       }, 'to yield response', 'foobar')
     })
   })
+  describe('res.end', function () {
+    it('should call res._implicitHeader if it havent been called before', function () {
+      return expect(function (res, handleError) {
+        hijackResponse(res, passError(handleError, function (res) {
+          res.pipe(res)
+        }))
+        res.end()
+      }, 'to yield response', 200)
+    })
+  })
 })
