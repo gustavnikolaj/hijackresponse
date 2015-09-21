@@ -39,12 +39,12 @@ describe('hijackResponse', function () {
     return expect(function (res, handleError) {
       hijackResponse(res, passError(handleError, function (res) {
         hijackResponse(res, passError(handleError, function (res) {
-            res.on('data', function (chunk) {
-              res.write(chunk)
-            }).on('end', function () {
-              res.write('qux')
-              res.end()
-            })
+          res.on('data', function (chunk) {
+            res.write(chunk)
+          }).on('end', function () {
+            res.write('qux')
+            res.end()
+          })
         }))
 
         res.on('data', function (chunk) {
@@ -61,7 +61,7 @@ describe('hijackResponse', function () {
     }, 'to yield response', 'foobarqux')
   })
   it('should be able to hijack an already hijacked response when piping', function () {
-    function appendToStream(value) {
+    function appendToStream (value) {
       var Transform = require('stream').Transform
       var appendTo = new Transform({})
       appendTo._transform = function (chunk, encoding, cb) {
