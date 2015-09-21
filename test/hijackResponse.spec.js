@@ -95,22 +95,6 @@ describe('hijackResponse', function () {
     }, 'to yield response', 'foofoofoofoofoobarbazqux')
   })
 
-
-
-
-
-  var debug = require('debug')
-  function StreamSnitch(name) {
-    var debug = require('debug')('snitch:'+name)
-    var Transform = require('stream').Transform
-    var snitch = new Transform({highWaterMark: 0})
-    snitch._transform = function (chunk, encoding, next) {
-      debug('passing on: %s', chunk && chunk.toString().replace(/\n/g, '\\n') || chunk)
-      next(null, chunk)
-    }
-    return snitch
-  }
-
   it('should support backpreassure working with a good stream', function () {
     // This test aims to force the bastardized readable stream that is the
     // hijackedResponse to buffer up to it's highWaterMark, and not any further
