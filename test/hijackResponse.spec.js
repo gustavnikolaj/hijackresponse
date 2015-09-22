@@ -39,14 +39,17 @@ describe('hijackResponse', function () {
     return expect(function (res, handleError) {
       hijackResponse(res, passError(handleError, function (res) {
         hijackResponse(res, passError(handleError, function (res) {
+          var chunks = []
           res.on('data', function (chunk) {
-            res.write(chunk)
+            chunks.push(chunk)
           }).on('end', function () {
-            res.write('qux')
-            res.end()
+            res.setHeader('X-qux', 'hijacked')
+            res.write(Buffer.concat(chunks))
+            res.end('qux')
           })
         }))
 
+        res.setHeader('X-bar', 'hijacked');
         res.on('data', function (chunk) {
           res.write(chunk)
         }).on('end', function () {
@@ -58,7 +61,13 @@ describe('hijackResponse', function () {
       res.setHeader('Content-Type', 'text/plain')
       res.write('foo')
       res.end()
-    }, 'to yield response', 'foobarqux')
+    }, 'to yield response', {
+      headers: {
+        'X-qux': 'hijacked',
+        'X-bar': 'hijacked'
+      },
+      body: 'foobarqux'
+    })
   })
   it('should be able to hijack an already hijacked response when piping', function () {
     function appendToStream (value) {
