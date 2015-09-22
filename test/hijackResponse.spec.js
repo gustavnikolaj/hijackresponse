@@ -307,10 +307,10 @@ describe('hijackResponse', function () {
     })
   })
   describe('res.unhijack', function () {
-    it('should allow the original data through if unhijacked and restoringOriginal', function () {
+    it('should allow the original data through if unhijacked', function () {
       return expect(function (res, handleError) {
         hijackResponse(res, passError(handleError, function (res) {
-          res.unhijack(true)
+          res.unhijack()
         }))
         res.setHeader('content-type', 'text/plain')
         setTimeout(function () {
@@ -318,96 +318,6 @@ describe('hijackResponse', function () {
           res.end()
         }, 10)
       }, 'to yield response', 'foobar')
-    })
-    it('should pass the original res to the callback and discard the original data', function () {
-      return expect(function (res, handleError) {
-        hijackResponse(res, passError(handleError, function (res) {
-          res.unhijack(passError(handleError, function (res) {
-            res.end('quxbaz')
-          }))
-        }))
-        res.setHeader('content-type', 'text/plain')
-        setTimeout(function () {
-          res.end('foobar')
-        }, 10)
-      }, 'to yield response', 'quxbaz')
-    })
-    it('should pass the original res to the callback and keep the original data', function () {
-      return expect(function (res, handleError) {
-        hijackResponse(res, passError(handleError, function (res) {
-          res.unhijack(true, passError(handleError, function (res) {
-            res.end('quxbaz')
-          }))
-        }))
-        res.setHeader('content-type', 'text/plain')
-        setTimeout(function () {
-          res.end('foobar')
-        }, 10)
-      }, 'to yield response', 'foobarquxbaz')
-    })
-    it('will loose data if unhijack is called after originalEnd', function () {
-      return expect(function (res, handleError) {
-        var afterEnd
-        hijackResponse(res, passError(handleError, function (res) {
-          afterEnd = function () {
-            res.unhijack(passError(handleError, function (res) {
-              res.end('quxbaz')
-            }))
-          }
-        }))
-        res.setHeader('content-type', 'text/plain')
-        res.end('foobar')
-        afterEnd()
-      }, 'to yield response', 'quxbaz')
-    })
-    it('will loose data if unhijack is called after originalEnd even with restoreOriginal', function () {
-      return expect(function (res, handleError) {
-        var afterEnd
-        hijackResponse(res, passError(handleError, function (res) {
-          afterEnd = function () {
-            res.unhijack(true, passError(handleError, function (res) {
-              res.end('quxbaz')
-            }))
-          }
-        }))
-        res.setHeader('content-type', 'text/plain')
-        res.end('foobar')
-        afterEnd()
-      }, 'to yield response', 'quxbaz')
-    })
-    it('should throw an error if no options are given', function () {
-      var promise = expect(function (res, handleError) {
-        hijackResponse(res, passError(handleError, function (res) {
-          try {
-            res.unhijack()
-          } catch (e) {
-            handleError(e)
-          }
-        }))
-        setImmediate(function () {
-          res.writeHead(200)
-        })
-      }, 'to yield response', 200)
-      return expect(promise, 'to be rejected with', /at least one argument/)
-    })
-    it('should throw an error called after end with no callback', function () {
-      var promise = expect(function (res, handleError) {
-        var afterEnd
-        hijackResponse(res, passError(handleError, function (res) {
-          afterEnd = function () {
-            try {
-              res.unhijack(true)
-            } catch (e) {
-              handleError(e)
-            }
-          }
-        }))
-        setImmediate(function () {
-          res.end()
-          afterEnd()
-        })
-      }, 'to yield response', 200)
-      return expect(promise, 'to be rejected with', /after end with no call/)
     })
   })
 })
