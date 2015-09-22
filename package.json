@@ -28,5 +28,8 @@
     "url": "github.com/gustavnikolaj/hijackresponse"
   },
   "author": "Gustav Nikolaj <gustavnikolaj@gmail.com>",
+  "contributors": [
+    "Andreas Lind <andreas@one.com>"
+  ],
   "license": "ISC"
 }
