@@ -94,4 +94,230 @@ describe('hijackResponse', function () {
       tick()
     }, 'to yield response', 'foofoofoofoofoobarbazqux')
   })
+
+  it('should support backpreassure working with a good stream', function () {
+    // This test aims to force the bastardized readable stream that is the
+    // hijackedResponse to buffer up to it's highWaterMark, and not any further
+    // and do multiple drains etc during the test. That is achieved by setting
+    // the same highWaterMark on both the fs.ReadStream, the delayed Transform
+    // stream and the hijackedResponse it self.
+
+    var bufferMax = 0
+    var drains = 0
+    var highWaterMark = 100
+    var streamOptions = { highWaterMark: highWaterMark }
+
+    var filePath = require('path').resolve(__dirname, '..', 'package.json')
+    var readStream = require('fs').createReadStream(filePath, streamOptions)
+
+    var Transform = require('stream').Transform
+    var delayedIdentityStream = new Transform(streamOptions)
+
+    return expect(function (res, handleError) {
+      hijackResponse(res, passError(handleError, function (res) {
+        delayedIdentityStream._transform = function (chunk, encoding, cb) {
+          setTimeout(function () {
+            bufferMax = Math.max(bufferMax, res._readableState.length)
+            cb(null, chunk)
+          }, 1)
+        }
+
+        res.pipe(delayedIdentityStream).pipe(res)
+      }), streamOptions)
+
+      res.on('drain', function () { drains += 1 })
+      readStream.pipe(res)
+    }, 'to yield response', 200).then(function (res) {
+      return expect(bufferMax, 'to equal', highWaterMark)
+    }).then(function () {
+      return expect(drains, 'to be greater than', 0)
+    })
+  })
+
+  it('should support backpreassure working with an old stream', function () {
+    // This test aims to force the bastardized readable stream that is the
+    // hijackedResponse to buffer up everything that has been written to it
+    // and play nicely with new downstream streams
+
+    var drains = 0
+    var highWaterMark = 5
+    var streamOptions = { highWaterMark: highWaterMark }
+
+    var stream = require('stream')
+
+    var onTransformBufferLenghts = []
+
+    var delayedIdentityStream = new stream.Transform(streamOptions)
+
+    return expect(function (res, handleError) {
+      hijackResponse(res, passError(handleError, function (res) {
+        delayedIdentityStream._transform = function (chunk, encoding, cb) {
+          onTransformBufferLenghts.push({
+            hijacked: res._readableState.length,
+            delayed: this._readableState.length
+          })
+          setTimeout(function () {
+            cb(null, chunk)
+          }, 3)
+        }
+        res.pipe(delayedIdentityStream).pipe(res)
+      }), streamOptions)
+
+      res.setHeader('Content-Type', 'text/plain')
+      res.on('drain', function () { drains += 1 })
+
+      var mockedReadStream = new stream.Stream()
+      mockedReadStream.readable = true
+
+      mockedReadStream.pipe(res)
+
+      mockedReadStream.emit('data', 'foo 12345\n')
+      mockedReadStream.emit('data', 'bar 12345\n')
+      mockedReadStream.emit('data', 'baz 12345\n')
+      mockedReadStream.emit('data', 'qux 12345\n')
+      mockedReadStream.emit('end')
+    }, 'to yield response', {
+      body: [
+        'foo 12345',
+        'bar 12345',
+        'baz 12345',
+        'qux 12345',
+        ''
+      ].join('\n')
+    }).then(function () {
+      return expect(drains, 'to be greater than', 0)
+    }).then(function () {
+      onTransformBufferLenghts.forEach(function (obj, i, arr) {
+        if (i + 1 === arr.length) {
+          return expect(obj, 'to satisfy', {
+            hijacked: 0,
+            delayed: 0
+          })
+        } else if (i === 0) {
+          return expect(obj, 'to satisfy', {
+            hijacked: expect.it('to be greater than', 0),
+            delayed: 0
+          })
+        } else {
+          return expect(obj, 'to satisfy', {
+            hijacked: expect.it('to be less than', arr[i - 1].hijacked),
+            delayed: 0
+          })
+        }
+      })
+    })
+  })
+  it('should write the last chunk', function () {
+    return expect(function (res, handleError) {
+      hijackResponse(res, passError(handleError, function (res) {
+        res.end('foobar')
+      }))
+
+      res.setHeader('content-type', 'text/plain')
+      res.writeHead(200)
+    }, 'to yield response', 'foobar')
+  })
+  describe('res.writeHead should trigger the hijackResponse callback', function () {
+    it('when called without anything', function () {
+      return expect(function (res, handleError) {
+        hijackResponse(res, passError(handleError, function (res) {
+          res.end('foobar')
+        }))
+
+        res.setHeader('content-type', 'text/plain')
+        res.writeHead()
+      }, 'to yield response', 'foobar')
+    })
+    it('when called with only a status code', function () {
+      return expect(function (res, handleError) {
+        hijackResponse(res, passError(handleError, function (res) {
+          res.end('foobar')
+        }))
+
+        res.setHeader('content-type', 'text/plain')
+        res.writeHead(200)
+      }, 'to yield response', 'foobar')
+    })
+    it('when called with status code and headers', function () {
+      return expect(function (res, handleError) {
+        hijackResponse(res, passError(handleError, function (res) {
+          res.end('foobar')
+        }))
+
+        res.writeHead(200, {
+          'content-type': 'text/plain'
+        })
+      }, 'to yield response', 'foobar')
+    })
+  })
+  describe('res.write', function () {
+    it('should work when called with a buffer', function () {
+      return expect(function (res, handleError) {
+        hijackResponse(res, passError(handleError, function (res) {
+          res.pipe(res)
+        }))
+
+        res.setHeader('content-type', 'text/plain')
+        res.write(new Buffer('foobar', 'utf-8'))
+        res.end()
+      }, 'to yield response', 'foobar')
+    })
+    it('should work when called with null', function () {
+      return expect(function (res, handleError) {
+        hijackResponse(res, passError(handleError, function (res) {
+          res.pipe(res)
+        }))
+
+        res.setHeader('content-type', 'text/plain')
+        res.write(new Buffer('foobar', 'utf-8'))
+        res.write(null)
+      }, 'to yield response', 'foobar')
+    })
+    it('should work when called with a string', function () {
+      return expect(function (res, handleError) {
+        hijackResponse(res, passError(handleError, function (res) {
+          res.pipe(res)
+        }))
+
+        res.setHeader('content-type', 'text/plain')
+        res.write('foobar')
+        res.end()
+      }, 'to yield response', 'foobar')
+    })
+    it('should work when called with a string and an encoding', function () {
+      return expect(function (res, handleError) {
+        hijackResponse(res, passError(handleError, function (res) {
+          res.pipe(res)
+        }))
+
+        res.setHeader('content-type', 'text/plain')
+        res.write('foobar', 'utf-8')
+        res.end()
+      }, 'to yield response', 'foobar')
+    })
+  })
+  describe('res.end', function () {
+    it('should call res._implicitHeader if it havent been called before', function () {
+      return expect(function (res, handleError) {
+        hijackResponse(res, passError(handleError, function (res) {
+          res.pipe(res)
+        }))
+        res.end()
+      }, 'to yield response', 200)
+    })
+  })
+  describe('res.unhijack', function () {
+    it('should allow the original data through if unhijacked', function () {
+      return expect(function (res, handleError) {
+        hijackResponse(res, passError(handleError, function (res) {
+          res.unhijack()
+        }))
+        res.setHeader('content-type', 'text/plain')
+        setTimeout(function () {
+          res.write('foobar')
+          res.end()
+        }, 10)
+      }, 'to yield response', 'foobar')
+    })
+  })
 })
