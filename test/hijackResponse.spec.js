@@ -148,7 +148,6 @@ describe('hijackResponse', function () {
     // hijackedResponse to buffer up everything that has been written to it
     // and play nicely with new downstream streams
 
-    var drains = 0
     var highWaterMark = 5
     var streamOptions = { highWaterMark: highWaterMark }
 
