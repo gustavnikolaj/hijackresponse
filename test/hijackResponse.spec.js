@@ -154,14 +154,14 @@ describe('hijackResponse', function () {
 
     var stream = require('stream')
 
-    var onTransformBufferLenghts = []
+    var onTransformBufferLengths = []
 
     var delayedIdentityStream = new stream.Transform(streamOptions)
 
     return expect(function (res, handleError) {
       hijackResponse(res, passError(handleError, function (res) {
         delayedIdentityStream._transform = function (chunk, encoding, cb) {
-          onTransformBufferLenghts.push({
+          onTransformBufferLengths.push({
             hijacked: res._readableState.length,
             delayed: this._readableState.length
           })
@@ -193,8 +193,8 @@ describe('hijackResponse', function () {
         ''
       ].join('\n')
     }).then(function () {
-      expect(onTransformBufferLenghts.length, 'to be greater than', 1)
-      onTransformBufferLenghts.forEach(function (obj, i, arr) {
+      expect(onTransformBufferLengths.length, 'to be greater than', 1)
+      onTransformBufferLengths.forEach(function (obj, i, arr) {
         if (i + 1 === arr.length) {
           return expect(obj, 'to satisfy', {
             hijacked: 0,
