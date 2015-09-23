@@ -49,7 +49,7 @@ describe('hijackResponse', function () {
           })
         }))
 
-        res.setHeader('X-bar', 'hijacked');
+        res.setHeader('X-bar', 'hijacked')
         res.on('data', function (chunk) {
           res.write(chunk)
         }).on('end', function () {
