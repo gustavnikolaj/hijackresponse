@@ -173,7 +173,6 @@ describe('hijackResponse', function () {
       }), streamOptions)
 
       res.setHeader('Content-Type', 'text/plain')
-      res.on('drain', function () { drains += 1 })
 
       var mockedReadStream = new stream.Stream()
       mockedReadStream.readable = true
@@ -194,8 +193,7 @@ describe('hijackResponse', function () {
         ''
       ].join('\n')
     }).then(function () {
-      return expect(drains, 'to be greater than', 0)
-    }).then(function () {
+      expect(onTransformBufferLenghts.length, 'to be greater than', 1)
       onTransformBufferLenghts.forEach(function (obj, i, arr) {
         if (i + 1 === arr.length) {
           return expect(obj, 'to satisfy', {
