@@ -21,7 +21,8 @@
   "scripts": {
     "coverage": "istanbul --include-all-sources cover _mocha",
     "lint": "standard",
-    "test": "mocha"
+    "test": "mocha",
+    "travis": "npm run lint && npm test"
   },
   "repository": {
     "type": "git",
