@@ -1,5 +1,7 @@
 # hijackresponse
 
+[![npm version](https://badge.fury.io/js/hijackresponse.svg)](https://www.npmjs.com/package/hijackresponse)
+
 Module that allows you to rewrite HTTP responses from middleware further down
 the stack, such as static providers, HTTP proxies etc.
 
