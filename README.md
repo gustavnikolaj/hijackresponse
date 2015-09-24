@@ -16,8 +16,8 @@ express and it supports streams2.
 
 It's mostly useful for content filters. The original use case is injecting an
 inline JavaScript into all HTML responses in
-<a href='https://github.com/One-com/livestyle'>LiveStyle</a>. It is also used
-in a series of transpiler and preprocessing middleware:
+[LiveStyle](https://github.com/One-com/livestyle). It is also used in a series
+of transpiler and preprocessing middleware:
 
 - [express-compiless](https://github.com/papandreou/express-compiless)
 - [express-processimage](https://github.com/papandreou/express-processimage)
