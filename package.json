@@ -5,6 +5,7 @@
   "main": "lib/hijackResponse.js",
   "devDependencies": {
     "bufferedstream": "3.1.1",
+    "coveralls": "2.11.4",
     "errorhandler": "1.4.2",
     "express": "4.13.3",
     "istanbul": "0.3.20",
@@ -22,7 +23,7 @@
     "coverage": "istanbul --include-all-sources cover _mocha",
     "lint": "standard",
     "test": "mocha",
-    "travis": "npm run lint && npm test"
+    "travis": "npm run lint && npm run coverage && <coverage/lcov.info coveralls"
   },
   "repository": {
     "type": "git",
