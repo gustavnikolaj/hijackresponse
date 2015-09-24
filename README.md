@@ -2,6 +2,7 @@
 
 [![npm version](https://badge.fury.io/js/hijackresponse.svg)](https://www.npmjs.com/package/hijackresponse)
 [![Build Status](https://travis-ci.org/gustavnikolaj/hijackresponse.svg)](https://travis-ci.org/gustavnikolaj/hijackresponse)
+[![Coverage Status](https://coveralls.io/repos/gustavnikolaj/hijackresponse/badge.svg?branch=master&service=github)](https://coveralls.io/github/gustavnikolaj/hijackresponse?branch=master)
 
 Module that allows you to rewrite HTTP responses from middleware further down
 the stack, such as static providers, HTTP proxies etc.
