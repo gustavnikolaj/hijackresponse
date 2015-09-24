@@ -60,7 +60,5 @@ app.use(function (req, res, next) {
 
 ## License
 
-## License
-
 This module is published under the ISC License. See the `LICENCE` file for
 additional details.
