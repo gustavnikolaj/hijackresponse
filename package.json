@@ -1,6 +1,6 @@
 {
   "name": "hijackresponse",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Hijack HttpResponses",
   "main": "lib/hijackResponse.js",
   "devDependencies": {
