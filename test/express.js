@@ -150,7 +150,7 @@ describe('Express Integration Tests', function () {
   it('should work when hijacking a big response body and the compression middleware is present above the hijacking middleware', function () {
     return expect(
       express()
-        .use(require('compression')())
+        .use(require('compression-papandreou')())
         .use(function (req, res, next) {
           hijackResponse(res, passError(next, function (res) {
             res.pipe(res);
