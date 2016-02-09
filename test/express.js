@@ -11,6 +11,7 @@ var expect = require('unexpected')
 var express = require('express')
 var passError = require('passerror')
 var hijackResponse = require('../')
+var Transform = require('stream').Transform
 
 describe('Express Integration Tests', function () {
   it('simple case', function () {
@@ -144,5 +145,23 @@ describe('Express Integration Tests', function () {
 
       return expect(app, 'to yield response', 'foo')
     })
+  })
+
+  it('should work when hijacking a big response body and the compression middleware is present above the hijacking middleware', function () {
+    return expect(
+      express()
+        .use(require('compression')())
+        .use(function (req, res, next) {
+          hijackResponse(res, passError(next, function (res) {
+            res.pipe(res);
+          }))
+          next();
+        })
+        .use(express.static(__dirname)),
+      'to yield exchange', {
+        request: 'GET /bigfile.txt',
+        response: { body: /^0{1999998}$/ }
+      }
+    )
   })
 })
