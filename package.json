@@ -1,5 +1,5 @@
 {
-  "name": "hijackresponse",
+  "name": "hijackresponse-nobackpressure",
   "version": "1.0.2",
   "description": "Hijack HttpResponses",
   "main": "lib/hijackResponse.js",
