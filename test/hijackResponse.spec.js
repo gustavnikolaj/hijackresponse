@@ -104,7 +104,7 @@ describe('hijackResponse', function () {
     }, 'to yield response', 'foofoofoofoofoobarbazqux')
   })
 
-  it('should support backpreassure working with a good stream', function () {
+  it.skip('should support backpreassure working with a good stream', function () {
     // This test aims to force the bastardized readable stream that is the
     // hijackedResponse to buffer up to it's highWaterMark, and not any further
     // and do multiple drains etc during the test. That is achieved by setting
