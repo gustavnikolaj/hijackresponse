@@ -11,7 +11,6 @@ var expect = require('unexpected')
 var express = require('express')
 var passError = require('passerror')
 var hijackResponse = require('../')
-var Transform = require('stream').Transform
 
 describe('Express Integration Tests', function () {
   it('simple case', function () {
@@ -153,9 +152,9 @@ describe('Express Integration Tests', function () {
         .use(require('compression-papandreou')())
         .use(function (req, res, next) {
           hijackResponse(res, passError(next, function (res) {
-            res.pipe(res);
+            res.pipe(res)
           }))
-          next();
+          next()
         })
         .use(express.static(__dirname)),
       'to yield exchange', {
