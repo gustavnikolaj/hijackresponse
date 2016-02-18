@@ -27,6 +27,10 @@
     "submit-coveralls": "<coverage/lcov.info coveralls"
   },
   "repository": "gustavnikolaj/hijackresponse",
+  "homepage": "https://github.com/gustavnikolaj/hijackresponse",
+  "bugs": {
+    "url" : "https://github.com/gustavnikolaj/hijackresponse/issues"
+  },
   "author": "Gustav Nikolaj <gustavnikolaj@gmail.com>",
   "contributors": [
     "Andreas Lind <andreas@one.com>"
