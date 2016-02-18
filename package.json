@@ -1,6 +1,6 @@
 {
   "name": "hijackresponse",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Hijack HttpResponses",
   "main": "lib/hijackResponse.js",
   "devDependencies": {
@@ -29,7 +29,7 @@
   "repository": "gustavnikolaj/hijackresponse",
   "homepage": "https://github.com/gustavnikolaj/hijackresponse",
   "bugs": {
-    "url" : "https://github.com/gustavnikolaj/hijackresponse/issues"
+    "url": "https://github.com/gustavnikolaj/hijackresponse/issues"
   },
   "author": "Gustav Nikolaj <gustavnikolaj@gmail.com>",
   "contributors": [
