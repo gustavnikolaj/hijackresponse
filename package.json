@@ -26,10 +26,7 @@
     "travis": "npm run lint && npm run coverage",
     "submit-coveralls": "<coverage/lcov.info coveralls"
   },
-  "repository": {
-    "type": "git",
-    "url": "github.com/gustavnikolaj/hijackresponse"
-  },
+  "repository": "gustavnikolaj/hijackresponse",
   "author": "Gustav Nikolaj <gustavnikolaj@gmail.com>",
   "contributors": [
     "Andreas Lind <andreas@one.com>"
