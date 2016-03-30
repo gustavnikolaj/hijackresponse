@@ -1,4 +1,4 @@
-/* global describe, it */
+/* global describe, it, beforeEach, afterEach */
 var expect = require('./unexpected-with-plugins')
 var passError = require('passerror')
 var http = require('http')
@@ -350,6 +350,7 @@ describe('hijackResponse', function () {
       return expect.promise(function (run) {
         handleRequest = run(function (req, res) {
           hijackResponse(res, run(function (err, res) {
+            expect(err, 'to be falsy')
             res.on('close', run(function () {}))
           }))
           res.end('yaddayadda')
@@ -359,10 +360,10 @@ describe('hijackResponse', function () {
         setTimeout(function () {
           request.abort()
         }, 10)
-        request.on('error', (function (err) {
+        request.on('error', run(function (err) {
           expect(err, 'to have message', 'socket hang up')
         }))
-      });
+      })
     })
   })
 })
