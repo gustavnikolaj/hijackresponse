@@ -40,7 +40,7 @@ var hijackResponse = require('hijackresponse');
 var app = express();
 
 app.use(function (req, res, next) {
-    hijackresponse(res, function (err, res) {
+    hijackResponse(res, function (err, res) {
         if (err) {
             res.unhijack(); // Make the original res object work again
             return next(err);
