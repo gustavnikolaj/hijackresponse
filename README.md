@@ -47,7 +47,7 @@ app.use(function (req, res, next) {
         }
 
         // Don't hijack HTML responses:
-        if (/^text/html(?:;$)/.test(res.getHeader('Content-Type'))) {
+        if (/^text\/html(?:;$)/.test(res.getHeader('Content-Type'))) {
             return res.unhijack();
         }
 
