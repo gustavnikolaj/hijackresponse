@@ -5,6 +5,7 @@ var messy = require('messy')
 var expect = require('unexpected')
   .clone()
   .use(require('unexpected-messy'))
+  .use(require('unexpected-sinon'))
   .addAssertion('to yield response', function (expect, subject, value) {
     var req = new http.IncomingMessage()
     var res = new http.ServerResponse(req)
