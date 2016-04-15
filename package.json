@@ -1,6 +1,6 @@
 {
   "name": "hijackresponse-nobackpressure",
-  "version": "1.0.2-patch1",
+  "version": "1.0.2-patch2",
   "description": "Hijack HttpResponses",
   "main": "lib/hijackResponse.js",
   "devDependencies": {
