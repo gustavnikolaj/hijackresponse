@@ -154,7 +154,7 @@ describe('Express Integration Tests', function () {
         .use(function (req, res, next) {
           hijackResponse(res, passError(next, function (res) {
             res.pipe(res);
-          }))
+          }), { disableBackpressure: true })
           next();
         })
         .use(express.static(__dirname)),

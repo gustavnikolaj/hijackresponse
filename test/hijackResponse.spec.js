@@ -106,7 +106,7 @@ describe('hijackResponse', function () {
     }, 'to yield response', 'foofoofoofoofoobarbazqux')
   })
 
-  it('should support backpreassure working with a good stream', function () {
+  it('should support backpressure working with a good stream', function () {
     // This test aims to force the bastardized readable stream that is the
     // hijackedResponse to buffer up to it's highWaterMark, and not any further
     // and do multiple drains etc during the test. That is achieved by setting
@@ -134,7 +134,7 @@ describe('hijackResponse', function () {
         }
 
         res.pipe(delayedIdentityStream).pipe(res)
-      }), streamOptions)
+      }), { readableOptions: streamOptions })
 
       res.on('drain', function () { drains += 1 })
       readStream.pipe(res)
@@ -145,7 +145,7 @@ describe('hijackResponse', function () {
     })
   })
 
-  it('should support backpreassure working with an old stream', function () {
+  it('should support backpressure working with an old stream', function () {
     // This test aims to force the bastardized readable stream that is the
     // hijackedResponse to buffer up everything that has been written to it
     // and play nicely with new downstream streams
@@ -171,7 +171,7 @@ describe('hijackResponse', function () {
           }, 3)
         }
         res.pipe(delayedIdentityStream).pipe(res)
-      }), streamOptions)
+      }), { readableOptions: streamOptions })
 
       res.setHeader('Content-Type', 'text/plain')
 
