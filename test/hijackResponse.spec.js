@@ -3,6 +3,7 @@ var expect = require('./unexpected-with-plugins')
 var passError = require('passerror')
 var http = require('http')
 var hijackResponse = require('../')
+var sinon = require('sinon')
 
 describe('hijackResponse', function () {
   it('should be able to hijack a reponse and rewrite it', function () {
@@ -363,6 +364,36 @@ describe('hijackResponse', function () {
         request.on('error', run(function (err) {
           expect(err, 'to have message', 'socket hang up')
         }))
+      })
+    })
+  })
+  describe('#destroyHijacked', function () {
+    it('should prevent hijackedRes from emitting more data', function () {
+      return expect(function (res, handleError) {
+        var closeSpy = sinon.spy()
+        hijackResponse(res, passError(handleError, function (res) {
+          setTimeout(function () { // Wait for .write('foo') to trigger writeHead and push
+            sinon.spy(res, 'emit')
+            res.destroyHijacked()
+            setTimeout(function () {
+              expect(res._readableState.buffer, 'to equal', [])
+              expect(res.emit, 'to have calls satisfying', [])
+              expect(closeSpy, 'to have calls satisfying', function () {
+                closeSpy()
+              })
+              res.end()
+            }, 1)
+          }, 1)
+        }))
+
+        res.on('close', closeSpy)
+        res.write('foo')
+        setTimeout(function () {
+          res.write('bar')
+        }, 0)
+      }, 'to yield response', {
+        statusCode: 200,
+        unchunkedBody: new Buffer([])
       })
     })
   })
