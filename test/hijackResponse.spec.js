@@ -393,7 +393,7 @@ describe('hijackResponse', function () {
         }, 0)
       }, 'to yield response', {
         statusCode: 200,
-        unchunkedBody: new Buffer([])
+        unchunkedBody: expect.it('to equal', new Buffer([])).or('to be undefined')
       })
     })
   })
