@@ -227,4 +227,86 @@ describe('Express Integration Tests', function () {
       this.server.close()
     })
   })
+  describe('against a real proxied server', function () {
+    before(function () {
+      var self = this
+
+      this.proxy = null
+      this.source = null
+
+      return new Promise(function (resolve) {
+        var app = express()
+
+        app.use(function (req, res, next) {
+          res.status(200)
+          res.set('Content-Type', 'text/plain')
+          res.set('X-Source', 'yes!')
+          res.end('foo')
+        })
+
+        self.source = http.Server(app)
+
+        self.source.listen(0, function () {
+          resolve(self.source.address().port)
+        })
+      }).then(function (sourcePort) {
+        return new Promise(function (resolve) {
+          var app = express()
+
+          app.use(function (req, res, next) {
+            hijackResponse(res, function (err, res) {
+              if (err) {
+                return next(err)
+              }
+              res.setHeader('X-Hijacked', 'yes!')
+              res.setHeader('transfer-encoding', 'chunked') // not set on > 0.10
+              res.removeHeader('Content-Length') // only set on > 0.10
+              res.pipe(res)
+            })
+            next()
+          })
+
+          app.use(require('http-proxy-middleware')({
+            target: 'http://localhost:' + sourcePort,
+            changeOrigin: true
+          }))
+
+          self.proxy = http.Server(app)
+
+          self.proxy.listen(0, function () {
+            resolve(self.proxy.address().port)
+          })
+        })
+      }).then(function (proxyPort) {
+        self.proxyPort = proxyPort
+      })
+    })
+    it('should not mangle response message', function () {
+      var self = this
+      return new Promise(function (resolve, reject) {
+        require('http').get({
+          host: 'localhost',
+          port: self.proxyPort,
+          path: '',
+          agent: false
+        }, function (res) {
+          resolve(res)
+        })
+      }).then(function (res) {
+        return expect(res.headers, 'to exhaustively satisfy', {
+          'x-powered-by': 'Express',
+          'content-type': /text\/plain/,
+          'transfer-encoding': 'chunked',
+          date: expect.it('to be a string'),
+          connection: 'close',
+          'x-source': 'yes!',
+          'x-hijacked': 'yes!'
+        })
+      })
+    })
+    after(function () {
+      this.proxy.close()
+      this.source.close()
+    })
+  })
 })
