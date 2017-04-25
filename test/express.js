@@ -305,8 +305,8 @@ describe('Express Integration Tests', function () {
       })
     })
     after(function () {
-      this.proxy.close && this.proxy.close()
-      this.source.close && this.source.close()
+      this.proxy.close()
+      this.source.close()
     })
   })
 })
