@@ -194,6 +194,20 @@ describe('hijackResponse', function () {
         res.end()
       }, 'to yield response', 'foobar')
     })
+    it('should return a boolean', () => {
+      var writeReturnValue
+      return expect(function (res, handleError) {
+        hijackResponse(res, passError(handleError, function (res) {
+          res.pipe(res)
+        }))
+
+        res.setHeader('content-type', 'text/plain')
+        writeReturnValue = res.write('foobar', 'utf-8')
+        res.end()
+      }, 'to yield response', 'foobar').then(function () {
+        expect(writeReturnValue, 'to be a boolean')
+      })
+    })
   })
   describe('res.end', function () {
     it('should call res._implicitHeader if it havent been called before', function () {
