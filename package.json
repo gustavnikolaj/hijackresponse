@@ -10,8 +10,8 @@
     "errorhandler": "1.4.2",
     "express": "4.13.3",
     "http-proxy-middleware": "0.17.4",
-    "istanbul": "0.3.20",
     "mocha": "^6.0.2",
+    "nyc": "^13.3.0",
     "passerror": "1.1.0",
     "sinon": "1.17.3",
     "standard": "^7.1.2",
@@ -20,10 +20,10 @@
     "unexpected-sinon": "^10.11.1"
   },
   "scripts": {
-    "coverage": "istanbul --include-all-sources cover _mocha",
+    "coverage": "nyc mocha && nyc report --reporter=html",
+    "coverage:ci": "nyc mocha && nyc report --reporter=lcov",
     "lint": "standard",
     "test": "mocha",
-    "travis": "npm run lint && npm run coverage",
     "submit-coveralls": "<coverage/lcov.info coveralls"
   },
   "repository": "gustavnikolaj/hijackresponse",

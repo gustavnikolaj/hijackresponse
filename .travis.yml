@@ -3,5 +3,7 @@ sudo: false
 node_js:
   - "6"
   - "7"
-script: "npm run travis"
+script:
+  - npm run lint
+  - npm run coverage:ci
 after_success: "npm run submit-coveralls"
