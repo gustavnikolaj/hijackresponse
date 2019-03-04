@@ -1,0 +1,7 @@
+{
+  "extends": ["eslint-config-pretty-standard"],
+  "plugins": ["import"],
+  "rules": {
+    "import/no-unresolved": ["error", { "commonjs": true }]
+  }
+}
