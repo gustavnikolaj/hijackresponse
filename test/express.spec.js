@@ -11,9 +11,10 @@ var expect = require('unexpected')
     })
   })
 var sinon = require('sinon')
+var path = require('path')
 var express = require('express')
 var passError = require('passerror')
-var hijackResponse = require('../')
+var hijackResponse = require('../lib/hijackResponse')
 
 describe('Express Integration Tests', function () {
   it('simple case', function () {
@@ -159,7 +160,7 @@ describe('Express Integration Tests', function () {
           }))
           next()
         })
-        .use(express.static(__dirname)),
+        .use(express.static(path.resolve(__dirname, 'fixtures'))),
       'to yield exchange', {
         request: 'GET /bigfile.txt',
         response: { body: /^0{1999998}$/ }

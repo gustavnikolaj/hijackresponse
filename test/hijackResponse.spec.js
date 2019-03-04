@@ -1,5 +1,5 @@
 /* global describe, it, beforeEach, afterEach */
-var expect = require('./unexpected-with-plugins')
+var expect = require('./helpers/unexpected-with-plugins')
 var passError = require('passerror')
 var http = require('http')
 var hijackResponse = require('../')
