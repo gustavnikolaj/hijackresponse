@@ -1,7 +1,6 @@
-/* global describe, it, beforeEach, afterEach */
+/* global describe, it */
 var expect = require("./helpers/unexpected-with-plugins");
 var passError = require("passerror");
-var http = require("http");
 var hijackResponse = require("../");
 var sinon = require("sinon");
 
@@ -327,54 +326,6 @@ describe("hijackResponse", function() {
         "to yield response",
         "foobar"
       );
-    });
-  });
-  describe("against a real server", function() {
-    var handleRequest;
-    var server;
-    var serverAddress;
-    var serverHostname;
-    var serverUrl;
-    beforeEach(function() {
-      handleRequest = undefined;
-      server = http
-        .createServer(function(req, res) {
-          res.sendDate = false;
-          handleRequest(req, res);
-        })
-        .listen(0);
-      serverAddress = server.address();
-      serverHostname =
-        serverAddress.address === "::" ? "localhost" : serverAddress.address;
-      serverUrl = "http://" + serverHostname + ":" + serverAddress.port + "/";
-    });
-    afterEach(function() {
-      server.close();
-    });
-    it("should emit the close event on the hijacked response", function() {
-      return expect.promise(function(run) {
-        handleRequest = run(function(req, res) {
-          hijackResponse(
-            res,
-            run(function(err, res) {
-              expect(err, "to be falsy");
-              res.on("close", run(function() {}));
-            })
-          );
-          res.end("yaddayadda");
-        });
-        var request = http.get(serverUrl);
-        request.end("foo");
-        setTimeout(function() {
-          request.abort();
-        }, 10);
-        request.on(
-          "error",
-          run(function(err) {
-            expect(err, "to have message", "socket hang up");
-          })
-        );
-      });
     });
   });
   describe("#destroyHijacked", function() {
