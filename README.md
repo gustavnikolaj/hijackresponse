@@ -1,8 +1,3 @@
-# WARNING
-
-This module is currently not tested against node 8 or later. We have a couple of
-known bugs and potential memory leaks when running on node versions 8 and newer.
-
 # hijackresponse
 
 [![npm version](https://badge.fury.io/js/hijackresponse.svg)](https://www.npmjs.com/package/hijackresponse)
@@ -41,32 +36,30 @@ $ npm install hijackresponse
 ## Usage
 
 ```js
-var express = require('express');
-var hijackResponse = require('hijackresponse');
+var express = require("express");
+var hijackResponse = require("hijackresponse");
 
 var app = express();
 
-app.use(function (req, res, next) {
-    hijackResponse(res, function (err, res) {
-        if (err) {
-            res.unhijack(); // Make the original res object work again
-            return next(err);
-        }
+app.use(function(req, res, next) {
+  hijackResponse(res, function(err, res) {
+    if (err) {
+      res.unhijack(); // Make the original res object work again
+      return next(err);
+    }
 
-        // Don't hijack HTML responses:
-        if (/^text\/html(?:;$)/.test(res.getHeader('Content-Type'))) {
-            return res.unhijack();
-        }
+    // Don't hijack HTML responses:
+    if (/^text\/html(?:;$)/.test(res.getHeader("Content-Type"))) {
+      return res.unhijack();
+    }
 
-        res.setHeader('X-Hijacked', 'yes!');
-        res.removeHeader('Content-Length');
+    res.setHeader("X-Hijacked", "yes!");
+    res.removeHeader("Content-Length");
 
-        res
-            .pipe(transformStream)
-            .pipe(res);
-    });
-    // next() must be called explicitly, even when hijacking the response:
-    next();
+    res.pipe(transformStream).pipe(res);
+  });
+  // next() must be called explicitly, even when hijacking the response:
+  next();
 });
 ```
 
