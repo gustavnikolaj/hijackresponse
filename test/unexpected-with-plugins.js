@@ -1,6 +1,5 @@
 var http = require('http')
 var stream = require('stream')
-var _ = require('lodash')
 var messy = require('messy')
 var expect = require('unexpected')
   .clone()
@@ -57,7 +56,7 @@ var expect = require('unexpected')
       } else if (typeof value === 'string' || Buffer.isBuffer(value)) {
         expectedResponseProperties = {body: value}
       } else {
-        expectedResponseProperties = _.extend({}, value)
+        expectedResponseProperties = Object.assign({}, value)
       }
 
       return expect(httpResponse, 'to satisfy', expectedResponseProperties)
