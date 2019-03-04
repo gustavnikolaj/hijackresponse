@@ -3,14 +3,12 @@ var http = require("http");
 var expect = require("unexpected")
   .clone()
   .use(require("unexpected-express"))
-  .use(require("unexpected-sinon"))
   .addAssertion("to yield response", function(expect, subject, value) {
     return expect(subject, "to yield exchange", {
       request: "GET /",
       response: value
     });
   });
-var sinon = require("sinon");
 var path = require("path");
 var express = require("express");
 var passError = require("passerror");
@@ -195,69 +193,54 @@ describe("Express Integration Tests", function() {
     );
   });
   describe("against a real server", function() {
+    let closeCallCount = 0;
+    let closeSpy = () => {
+      closeCallCount += 1;
+    };
+    let server = null;
+
     before(function() {
-      var self = this;
-      var spy = sinon.spy();
-
-      this.spy = spy;
-
       return new Promise(function(resolve) {
         var app = express()
-          .use(function(req, res, next) {
-            res.on("close", function() {
-              spy();
-              self.resolve();
-            });
-
+          .use((req, res, next) => {
+            res.on("close", () => closeSpy());
             next();
           })
           .use(function(req, res, next) {
-            hijackResponse(
-              res,
-              passError(next, function(res) {
-                res.pipe(res);
-              })
-            );
-
+            hijackResponse(res, (err, res) => res.pipe(res));
             next();
           })
           .use(function(req, res) {
             res.write("foo");
           });
 
-        var server = http.Server(app);
+        server = http.Server(app);
         server.listen(0, function() {
           resolve(server);
         });
-      }).then(function(server) {
-        self.server = server;
       });
     });
+
     it('should not prevent "close" events registered on res from firing when hijacking', function() {
-      var self = this;
-      var port = this.server.address().port;
-      var spy = this.spy;
+      var port = server.address().port;
 
       return new Promise(function(resolve) {
-        self.resolve = resolve;
-
-        var options = {
-          port: port
-        };
-
-        var request = http.request(options, function(res) {
+        var request = http.request({ port: port }, function(res) {
           request.abort();
+          setTimeout(() => resolve(), 10);
         });
 
         request.end();
       }).then(function() {
-        expect(spy, "was called");
+        expect({ closeCallCount }, "to satisfy", { closeCallCount: 1 });
       });
     });
+
     after(function() {
-      this.server.close();
+      server.close();
     });
   });
+
   describe("against a real proxied server", function() {
     before(function() {
       var self = this;
