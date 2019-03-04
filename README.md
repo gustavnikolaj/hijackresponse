@@ -1,3 +1,8 @@
+# WARNING
+
+This module is currently not tested against node 8 or later. We have a couple of
+known bugs and potential memory leaks when running on node versions 8 and newer.
+
 # hijackresponse
 
 [![npm version](https://badge.fury.io/js/hijackresponse.svg)](https://www.npmjs.com/package/hijackresponse)
@@ -7,6 +12,8 @@
 
 Module that allows you to rewrite HTTP responses from middleware further down
 the stack, such as static providers, HTTP proxies etc.
+
+Require node v6 or later.
 
 This module is the spiritual successor to
 [express-hijackresponse](https://github.com/papandreou/express-hijackresponse)
