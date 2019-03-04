@@ -1,371 +1,334 @@
-/* global describe, it */
-var expect = require("./helpers/unexpected-with-plugins");
-var passError = require("passerror");
-var hijackResponse = require("../");
-var sinon = require("sinon");
+const createTestServer = require("./helpers/test-server");
+const expect = require("unexpected");
+const hijackResponse = require("../lib/hijackResponse");
+const stream = require("stream");
 
-describe("hijackResponse", function() {
-  it("should be able to hijack a reponse and rewrite it", function() {
-    return expect(
-      function(res, handleError) {
-        hijackResponse(
-          res,
-          passError(handleError, function(res) {
-            var chunks = [];
-            res.on("data", function(chunk) {
-              chunks.push(chunk);
-            });
-            res.on("end", function() {
-              var result = Buffer.concat(chunks)
-                .toString("utf-8")
-                .toUpperCase();
-              res.write(result, "utf-8");
-              res.end();
-            });
-          })
-        );
+describe("hijackResponse", () => {
+  it("should be able to hijack a reponse and rewrite it", () => {
+    const request = createTestServer((req, res) => {
+      hijackResponse(res, (err, res) => {
+        let chunks = [];
 
-        res.setHeader("Content-Type", "text/plain");
-        res.write("foo");
-        res.end();
-      },
-      "to yield response",
-      "FOO"
-    );
+        res.on("data", chunk => chunks.push(chunk));
+
+        res.on("end", () => {
+          const stringifiedResponse = Buffer.concat(chunks).toString("utf-8");
+          res.end(stringifiedResponse.toUpperCase());
+        });
+      });
+
+      res.setHeader("Content-Type", "text/plain");
+      res.end("foo");
+    });
+
+    return expect(request(), "when fulfilled", "to satisfy", { body: "FOO" });
   });
-  it("should be able to pipe hijacked res into it self.", function() {
-    return expect(
-      function(res, handleError) {
-        hijackResponse(
-          res,
-          passError(handleError, function(res) {
-            res.pipe(res);
-          })
-        );
 
-        res.setHeader("Content-Type", "text/plain");
-        res.write("foo");
-        res.write("bar");
-        res.end();
-      },
-      "to yield response",
-      "foobar"
-    );
+  it("should pipe through a transform stream", () => {
+    const request = createTestServer((req, res) => {
+      hijackResponse(res, (err, res) => {
+        const uppercaseStream = new stream.Transform({
+          transform(chunk, encoding, callback) {
+            if (encoding !== "utf-8") {
+              chunk = Buffer.from(chunk).toString("utf-8");
+            }
+
+            chunk = chunk.toUpperCase();
+
+            callback(null, chunk);
+          }
+        });
+
+        res.pipe(uppercaseStream).pipe(res);
+      });
+
+      res.setHeader("Content-Type", "text/plain");
+      res.write("foo");
+      res.end("bar");
+    });
+
+    return expect(request(), "when fulfilled", "to satisfy", {
+      body: "FOOBAR"
+    });
   });
-  it("should be able to hijack an already hijacked response", function() {
-    return expect(
-      function(res, handleError) {
-        hijackResponse(
-          res,
-          passError(handleError, function(res) {
-            hijackResponse(
-              res,
-              passError(handleError, function(res) {
-                var chunks = [];
-                res
-                  .on("data", function(chunk) {
-                    chunks.push(chunk);
-                  })
-                  .on("end", function() {
-                    res.setHeader("X-qux", "hijacked");
-                    res.write(Buffer.concat(chunks));
-                    res.end("qux");
-                  });
-              })
-            );
 
-            res.setHeader("X-bar", "hijacked");
-            res
-              .on("data", function(chunk) {
-                res.write(chunk);
-              })
-              .on("end", function() {
-                res.write("bar");
-                res.end();
-              });
-          })
-        );
+  it("should be able to pipe hijacked res into it self.", () => {
+    const request = createTestServer((req, res) => {
+      hijackResponse(res, (err, res) => res.pipe(res));
 
-        res.setHeader("Content-Type", "text/plain");
-        res.write("foo");
-        res.end();
+      res.setHeader("Content-Type", "text/plain");
+      res.write("foo");
+      res.write("bar");
+      res.end();
+    });
+
+    return expect(request(), "when fulfilled", "to satisfy", {
+      body: "foobar"
+    });
+  });
+
+  it("should be able to hijack an already hijacked response", () => {
+    const request = createTestServer((req, res) => {
+      hijackResponse(res, (err, res) => {
+        hijackResponse(res, (err, res) => {
+          const chunks = [];
+          res
+            .on("data", chunk => chunks.push(chunk))
+            .on("end", () => {
+              res.setHeader("X-qux", "hijacked");
+              res.write(Buffer.concat(chunks));
+              res.end("qux");
+            });
+        });
+
+        res.setHeader("X-bar", "hijacked");
+        res
+          .on("data", chunk => res.write(chunk))
+          .on("end", () => {
+            res.write("bar");
+            res.end();
+          });
+      });
+
+      res.setHeader("Content-Type", "text/plain");
+      res.write("foo");
+      res.end();
+    });
+    return expect(request(), "when fulfilled", "to satisfy", {
+      headers: {
+        "content-type": "text/plain",
+        "x-bar": "hijacked",
+        "x-qux": "hijacked"
       },
-      "to yield response",
-      {
-        headers: {
-          "X-qux": "hijacked",
-          "X-bar": "hijacked"
+      body: "foobarqux"
+    });
+  });
+
+  it("should be able to hijack an already hijacked response when piping", () => {
+    const appendToStream = value =>
+      new stream.Transform({
+        transform(chunk, encoding, cb) {
+          this.push(chunk);
+          cb();
         },
-        body: "foobarqux"
-      }
-    );
-  });
-  it("should be able to hijack an already hijacked response when piping", function() {
-    function appendToStream(value) {
-      var Transform = require("stream").Transform;
-      var appendTo = new Transform({});
-      appendTo._transform = function(chunk, encoding, cb) {
-        this.push(chunk);
-        cb();
-      };
-      appendTo._flush = function(cb) {
-        this.push(new Buffer(value));
-        cb();
-      };
-      return appendTo;
-    }
-    return expect(
-      function(res, handleError) {
-        hijackResponse(
-          res,
-          passError(handleError, function(res) {
-            hijackResponse(
-              res,
-              passError(handleError, function(res) {
-                res.pipe(appendToStream("qux")).pipe(res);
-              })
-            );
-            res.pipe(appendToStream("baz")).pipe(res);
-          })
-        );
-
-        res.setHeader("Content-Type", "text/plain");
-
-        var num = 0;
-        function tick() {
-          res.write("foo");
-          num += 1;
-          if (num < 5) return setImmediate(tick);
-          res.end("bar");
+        flush(cb) {
+          this.push(Buffer.from(value));
+          cb();
         }
-        tick();
-      },
-      "to yield response",
-      "foofoofoofoofoobarbazqux"
-    );
+      });
+
+    const request = createTestServer((req, res) => {
+      hijackResponse(res, (err, res) => {
+        hijackResponse(res, (err, res) => {
+          res.pipe(appendToStream("qux")).pipe(res);
+        });
+        res.pipe(appendToStream("baz")).pipe(res);
+      });
+
+      res.setHeader("Content-Type", "text/plain");
+
+      let num = 0;
+      const tick = () => {
+        res.write("foo");
+        num += 1;
+        if (num < 5) return setImmediate(tick);
+        res.end("bar");
+      };
+      tick();
+    });
+
+    return expect(request(), "when fulfilled", "to satisfy", {
+      body: "foofoofoofoofoobarbazqux"
+    });
   });
 
-  it("should write the last chunk", function() {
-    return expect(
-      function(res, handleError) {
-        hijackResponse(
-          res,
-          passError(handleError, function(res) {
-            res.end("foobar");
-          })
-        );
+  it("should write the last chunk", () => {
+    const request = createTestServer((req, res) => {
+      hijackResponse(res, (err, res) => res.end("foobar"));
+
+      res.setHeader("content-type", "text/plain");
+      res.writeHead(200);
+    });
+
+    return expect(request(), "when fulfilled", "to satisfy", {
+      body: "foobar"
+    });
+  });
+
+  describe("res.writeHead should trigger the hijackResponse callback", () => {
+    it("when called without anything", () => {
+      const request = createTestServer((req, res) => {
+        hijackResponse(res, (err, res) => res.end("foobar"));
+
+        res.setHeader("content-type", "text/plain");
+        res.writeHead();
+      });
+
+      return expect(request(), "when fulfilled", "to satisfy", {
+        body: "foobar"
+      });
+    });
+
+    it("when called with only a status code", () => {
+      const request = createTestServer((req, res) => {
+        hijackResponse(res, (err, res) => res.end("foobar"));
 
         res.setHeader("content-type", "text/plain");
         res.writeHead(200);
-      },
-      "to yield response",
-      "foobar"
-    );
-  });
-  describe("res.writeHead should trigger the hijackResponse callback", function() {
-    it("when called without anything", function() {
-      return expect(
-        function(res, handleError) {
-          hijackResponse(
-            res,
-            passError(handleError, function(res) {
-              res.end("foobar");
-            })
-          );
+      });
 
-          res.setHeader("content-type", "text/plain");
-          res.writeHead();
-        },
-        "to yield response",
-        "foobar"
-      );
+      return expect(request(), "when fulfilled", "to satisfy", {
+        body: "foobar"
+      });
     });
-    it("when called with only a status code", function() {
-      return expect(
-        function(res, handleError) {
-          hijackResponse(
-            res,
-            passError(handleError, function(res) {
-              res.end("foobar");
-            })
-          );
 
-          res.setHeader("content-type", "text/plain");
-          res.writeHead(200);
-        },
-        "to yield response",
-        "foobar"
-      );
-    });
-    it("when called with status code and headers", function() {
-      return expect(
-        function(res, handleError) {
-          hijackResponse(
-            res,
-            passError(handleError, function(res) {
-              res.end("foobar");
-            })
-          );
+    it("when called with status code and headers", () => {
+      const request = createTestServer((req, res) => {
+        hijackResponse(res, (err, res) => res.end("foobar"));
 
-          res.writeHead(200, {
-            "content-type": "text/plain"
-          });
-        },
-        "to yield response",
-        "foobar"
-      );
+        res.writeHead(200, {
+          "content-type": "text/plain"
+        });
+      });
+
+      return expect(request(), "when fulfilled", "to satisfy", {
+        body: "foobar"
+      });
     });
   });
-  describe("res.write", function() {
-    it("should work when called with a buffer", function() {
-      return expect(
-        function(res, handleError) {
-          hijackResponse(
-            res,
-            passError(handleError, function(res) {
-              res.pipe(res);
-            })
-          );
 
-          res.setHeader("content-type", "text/plain");
-          res.write(new Buffer("foobar", "utf-8"));
-          res.end();
-        },
-        "to yield response",
-        "foobar"
-      );
+  describe("res.write", () => {
+    it("should work when called with a buffer", () => {
+      const request = createTestServer((req, res) => {
+        hijackResponse(res, (err, res) => res.pipe(res));
+
+        res.setHeader("content-type", "text/plain");
+        res.write(new Buffer("foobar", "utf-8"));
+        res.end();
+      });
+
+      return expect(request(), "when fulfilled", "to satisfy", {
+        body: "foobar"
+      });
     });
-    it("should work when called with null", function() {
-      return expect(
-        function(res, handleError) {
-          hijackResponse(
-            res,
-            passError(handleError, function(res) {
-              res.pipe(res);
-            })
-          );
 
-          res.setHeader("content-type", "text/plain");
-          res.write(new Buffer("foobar", "utf-8"));
-          res.write(null);
-        },
-        "to yield response",
-        "foobar"
-      );
+    it("should work when called with null", () => {
+      const request = createTestServer((req, res) => {
+        hijackResponse(res, (err, res) => res.pipe(res));
+
+        res.setHeader("content-type", "text/plain");
+        res.write(Buffer.from("foobar"));
+        res.write(null);
+      });
+
+      return expect(request(), "when fulfilled", "to satisfy", {
+        body: "foobar"
+      });
     });
-    it("should work when called with a string", function() {
-      return expect(
-        function(res, handleError) {
-          hijackResponse(
-            res,
-            passError(handleError, function(res) {
-              res.pipe(res);
-            })
-          );
 
-          res.setHeader("content-type", "text/plain");
-          res.write("foobar");
-          res.end();
-        },
-        "to yield response",
-        "foobar"
-      );
+    it("should work when called with a string", () => {
+      const request = createTestServer((req, res) => {
+        hijackResponse(res, (err, res) => res.pipe(res));
+
+        res.setHeader("content-type", "text/plain");
+        res.write("foobar");
+        res.end();
+      });
+
+      return expect(request(), "when fulfilled", "to satisfy", {
+        body: "foobar"
+      });
     });
-    it("should work when called with a string and an encoding", function() {
-      return expect(
-        function(res, handleError) {
-          hijackResponse(
-            res,
-            passError(handleError, function(res) {
-              res.pipe(res);
-            })
-          );
 
-          res.setHeader("content-type", "text/plain");
-          res.write("foobar", "utf-8");
-          res.end();
-        },
-        "to yield response",
-        "foobar"
-      );
+    it("should work when called with a string and an encoding", () => {
+      const request = createTestServer((req, res) => {
+        hijackResponse(res, (err, res) => res.pipe(res));
+
+        res.setHeader("content-type", "text/plain");
+        res.write("foobar", "utf-8");
+        res.end();
+      });
+
+      return expect(request(), "when fulfilled", "to satisfy", {
+        body: "foobar"
+      });
     });
   });
-  describe("res.end", function() {
-    it("should call res._implicitHeader if it havent been called before", function() {
-      return expect(
-        function(res, handleError) {
-          hijackResponse(
-            res,
-            passError(handleError, function(res) {
-              res.pipe(res);
-            })
-          );
-          res.end();
-        },
-        "to yield response",
-        200
-      );
+
+  describe("res.end", () => {
+    it("should call res._implicitHeader if it havent been called before", () => {
+      const request = createTestServer((req, res) => {
+        hijackResponse(res, (err, res) => res.pipe(res));
+        res.end();
+      });
+
+      return expect(request(), "when fulfilled", "to satisfy", {
+        statusCode: 200
+      });
     });
   });
-  describe("res.unhijack", function() {
-    it("should allow the original data through if unhijacked", function() {
-      return expect(
-        function(res, handleError) {
-          hijackResponse(
-            res,
-            passError(handleError, function(res) {
-              res.unhijack();
-            })
-          );
-          res.setHeader("content-type", "text/plain");
-          setTimeout(function() {
-            res.write("foobar");
-            res.end();
-          }, 10);
-        },
-        "to yield response",
-        "foobar"
-      );
+
+  describe("res.unhijack", () => {
+    it("should allow the original data through if unhijacked", () => {
+      const request = createTestServer((req, res) => {
+        hijackResponse(res, (err, res) => res.unhijack());
+        res.setHeader("content-type", "text/plain");
+        setTimeout(() => res.end("foobar"), 10);
+      });
+
+      return expect(request(), "when fulfilled", "to satisfy", {
+        body: "foobar"
+      });
     });
   });
+
   describe("#destroyHijacked", function() {
     it("should prevent hijackedRes from emitting more data", function() {
-      return expect(
-        function(res, handleError) {
-          var closeSpy = sinon.spy();
-          hijackResponse(
-            res,
-            passError(handleError, function(res) {
-              setTimeout(function() {
-                // Wait for .write('foo') to trigger writeHead and push
-                sinon.spy(res, "emit");
-                res.destroyHijacked();
-                setTimeout(function() {
-                  expect(res._readableState.buffer, "to equal", []);
-                  expect(res.emit, "to have calls satisfying", []);
-                  expect(closeSpy, "to have calls satisfying", function() {
-                    closeSpy();
-                  });
-                  res.end();
-                }, 1);
-              }, 1);
-            })
-          );
+      let closeCalledCount = 0;
+      const closeSpy = () => {
+        closeCalledCount += 1;
+      };
 
-          res.on("close", closeSpy);
-          res.write("foo");
-          setTimeout(function() {
-            res.write("bar");
-          }, 0);
-        },
-        "to yield response",
-        {
-          statusCode: 200,
-          unchunkedBody: expect
-            .it("to equal", new Buffer([]))
-            .or("to be undefined")
-        }
-      );
+      const emits = [];
+      const spyEmit = res => {
+        const origEmit = res.emit;
+        res.emit = (...args) => {
+          emits.push(args);
+          origEmit.apply(res, args);
+        };
+        return () => {
+          res.emit = origEmit;
+        };
+      };
+
+      const request = createTestServer((req, res) => {
+        hijackResponse(res, (err, res) => {
+          // Wait for .write('foo') to trigger writeHead and push
+          const restoreEmit = spyEmit(res);
+          setTimeout(() => {
+            res.destroyHijacked();
+            setTimeout(() => {
+              restoreEmit();
+              res.end();
+            }, 1);
+          }, 1);
+        });
+
+        res.on("close", closeSpy);
+
+        res.write("foo");
+        setTimeout(() => res.write("bar"), 0);
+      });
+
+      return expect(request(), "when fulfilled", "to satisfy", {
+        statusCode: 200,
+        rawBody: Buffer.concat([])
+      }).then(() => {
+        return expect({ closeCalledCount, emits }, "to satisfy", {
+          closeCalledCount: 1,
+          emits: []
+        });
+      });
     });
   });
 });
