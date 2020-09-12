@@ -36,5 +36,8 @@
   "contributors": [
     "Andreas Lind <andreaslindpetersen@gmail.com>"
   ],
+  "files": [
+    "lib"
+  ],
   "license": "ISC"
 }
