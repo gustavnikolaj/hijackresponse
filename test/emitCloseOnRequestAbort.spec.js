@@ -34,7 +34,10 @@ describe("with a aborted request", function() {
           res,
           run(function(err, res) {
             expect(err, "to be falsy");
-            res.on("close", run(function() {}));
+            res.on(
+              "close",
+              run(function() {})
+            );
           })
         );
         res.end("yaddayadda");
