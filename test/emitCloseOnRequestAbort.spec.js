@@ -43,7 +43,6 @@ describe("with a aborted request", function() {
         res.end("yaddayadda");
       });
       var request = http.get(serverUrl);
-      request.end("foo");
 
       request.on("finish", () => {
         // abort the request as soon as the request body has been submitted.
