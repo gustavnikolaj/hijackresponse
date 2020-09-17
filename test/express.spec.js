@@ -29,7 +29,7 @@ describe("Express Integration Tests", function() {
               var result = Buffer.concat(chunks)
                 .toString("utf-8")
                 .toUpperCase();
-              res.write(new Buffer(result));
+              res.write(Buffer.from(result));
               res.end();
             });
           })

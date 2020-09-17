@@ -203,7 +203,7 @@ describe("hijackResponse", () => {
         hijackResponse(res, (err, res) => res.pipe(res));
 
         res.setHeader("content-type", "text/plain");
-        res.write(new Buffer("foobar", "utf-8"));
+        res.write(Buffer.from("foobar", "utf-8"));
         res.end();
       });
 
