@@ -32,7 +32,7 @@ describe("with a aborted request", function() {
       handleRequest = run(function(req, res) {
         hijackResponse(
           res,
-          run(function(err, res) {
+          run(function(err, hijackedResponseBody, res) {
             expect(err, "to be falsy");
             res.on(
               "close",
