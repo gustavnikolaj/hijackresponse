@@ -45,9 +45,10 @@ describe("with a aborted request", function() {
       var request = http.get(serverUrl);
       request.end("foo");
 
-      setTimeout(function() {
+      request.on("finish", () => {
+        // abort the request as soon as the request body has been submitted.
         request.abort();
-      }, 10);
+      });
 
       request.on(
         "error",
