@@ -375,4 +375,33 @@ describe("hijackResponse", () => {
       });
     });
   });
+
+  describe("hijackedResponseBody#destroyAndRestore", () => {
+    it("should restore the response so it works again for next(err) etc.", () => {
+      const request = createTestServer((req, res) => {
+        function simulatedNextCallBack(err) {
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify({ error: err.message }));
+        }
+
+        hijackResponse(res, (err, responseBody, res) => {
+          responseBody.on("data", () => {
+            // after having seen the kind of data coming from responseBody stream, we decide to just
+            // error out rather than try to do something useful with the
+            responseBody.destroyAndRestore();
+            simulatedNextCallBack(new Error("Nah"));
+          });
+        });
+        res.setHeader("content-type", "text/plain");
+        res.write("GARBAGE REDACTED");
+      });
+
+      return expect(request(), "when fulfilled", "to satisfy", {
+        headers: {
+          "content-type": "application/json"
+        },
+        body: { error: "Nah" }
+      });
+    });
+  });
 });
