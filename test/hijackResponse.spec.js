@@ -293,67 +293,6 @@ describe("hijackResponse", () => {
     });
   });
 
-  describe.skip("#destroyHijacked", function() {
-    it("should prevent hijackedRes from emitting more data", function() {
-      let closeCalledCount = 0;
-      const closeSpy = () => {
-        closeCalledCount += 1;
-      };
-
-      const emits = [];
-      const spyEmit = res => {
-        const origEmit = res.emit;
-        res.emit = (...args) => {
-          emits.push(args);
-          origEmit.apply(res, args);
-        };
-        return () => {
-          res.emit = origEmit;
-        };
-      };
-
-      const request = createTestServer((req, res) => {
-        hijackResponse(res, (err, res) => {
-          // Wait for .write('foo') to trigger writeHead and push
-          const restoreEmit = spyEmit(res);
-          setTimeout(() => {
-            res.destroyHijacked();
-            setTimeout(() => {
-              restoreEmit();
-              res.end();
-            }, 1);
-          }, 1);
-        });
-
-        res.on("close", closeSpy);
-
-        res.write("foo");
-        setTimeout(() => res.write("bar"), 0);
-      });
-
-      return expect(request(), "when fulfilled", "to satisfy", {
-        statusCode: 200,
-        rawBody: Buffer.concat([])
-      }).then(() => {
-        if (
-          require("semver").parse(process.version).major > 10 &&
-          closeCalledCount === 1
-        ) {
-          throw new Error("LOOK AT THIS TEST");
-        }
-
-        return expect({ closeCalledCount, emits }, "to satisfy", {
-          // On node.js 11 and later, we get an extra close event later. I have
-          // not observed any wrong behavior caused by this, but I cannot see
-          // figure out why it's happening...
-          //
-          // closeCalledCount: 1,
-          emits: []
-        });
-      });
-    });
-  });
-
   describe("hijackedResponseBody#destroyAndRestore", () => {
     it("should restore the response so it works again for next(err) etc.", () => {
       const request = createTestServer((req, res) => {
