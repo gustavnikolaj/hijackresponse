@@ -290,7 +290,8 @@ describe("Express Integration Tests", function() {
             app.use(
               require("http-proxy-middleware")({
                 target: "http://localhost:" + sourcePort,
-                changeOrigin: true
+                changeOrigin: true,
+                logLevel: "silent"
               })
             );
 
