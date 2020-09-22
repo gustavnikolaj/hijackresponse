@@ -1,4 +1,4 @@
-/* global describe, it, before, after */
+/* global describe, it */
 var http = require("http");
 var expect = require("unexpected")
   .clone()
@@ -202,13 +202,7 @@ describe("Express Integration Tests", function() {
     );
   });
   describe("against a real server", function() {
-    let closeCallCount = 0;
-    let closeSpy = () => {
-      closeCallCount += 1;
-    };
-    let server = null;
-
-    before(function() {
+    function createServer(closeSpy) {
       return new Promise(function(resolve) {
         var app = express()
           .use((req, res, next) => {
@@ -225,105 +219,119 @@ describe("Express Integration Tests", function() {
             res.write("foo");
           });
 
-        server = http.Server(app);
-        server.listen(0, function() {
-          resolve(server);
+        const server = http.Server(app);
+
+        server.listen(0, () => {
+          resolve({
+            port: server.address().port,
+            close: () => server.close()
+          });
         });
       });
-    });
+    }
 
-    it('should not prevent "close" events registered on res from firing when hijacking', function() {
-      var port = server.address().port;
+    it('should not prevent "close" events registered on res from firing when hijacking', async () => {
+      let closeCallCount = 0;
+      const closeSpy = () => {
+        closeCallCount += 1;
+      };
+      const server = await createServer(closeSpy);
 
-      return new Promise(function(resolve) {
-        var request = http.request({ port: port }, function(res) {
-          request.abort();
-          setTimeout(() => resolve(), 10);
+      try {
+        await new Promise(function(resolve) {
+          var request = http.request({ port: server.port }, res => {
+            request.abort();
+            setTimeout(() => resolve(), 10);
+          });
+
+          request.end();
         });
 
-        request.end();
-      }).then(function() {
         expect({ closeCallCount }, "to satisfy", { closeCallCount: 1 });
-      });
-    });
-
-    after(function() {
-      server.close();
+      } finally {
+        server.close();
+      }
     });
   });
 
-  describe("against a real proxied server", function() {
-    before(function() {
-      var self = this;
-
-      this.proxy = null;
-      this.source = null;
-
-      return new Promise(function(resolve) {
+  describe("against a real proxied server", () => {
+    function createApp() {
+      return new Promise(resolve => {
         var app = express();
 
-        app.use(function(req, res, next) {
+        app.use((req, res, next) => {
           res.status(200);
           res.set("Content-Type", "text/plain");
           res.set("X-Source", "yes!");
           res.end("foo");
         });
 
-        self.source = http.Server(app);
+        const source = http.Server(app);
 
-        self.source.listen(0, function() {
-          resolve(self.source.address().port);
-        });
-      })
-        .then(function(sourcePort) {
-          return new Promise(function(resolve) {
-            var app = express();
-
-            app.use(function(req, res, next) {
-              hijackResponse(res, function(hijackedResponseBody, res) {
-                res.setHeader("X-Hijacked", "yes!");
-                res.setHeader("transfer-encoding", "chunked"); // not set on > 0.10
-                res.removeHeader("Content-Length"); // only set on > 0.10
-                hijackedResponseBody.pipe(res);
-              });
-              next();
-            });
-
-            app.use(
-              require("http-proxy-middleware")({
-                target: "http://localhost:" + sourcePort,
-                changeOrigin: true,
-                logLevel: "silent"
-              })
-            );
-
-            self.proxy = http.Server(app);
-
-            self.proxy.listen(0, function() {
-              resolve(self.proxy.address().port);
-            });
+        source.listen(0, () => {
+          resolve({
+            port: source.address().port,
+            close: () => source.close()
           });
-        })
-        .then(function(proxyPort) {
-          self.proxyPort = proxyPort;
         });
-    });
-    it("should not mangle response message", function() {
-      var self = this;
-      return new Promise(function(resolve, reject) {
+      });
+    }
+
+    function createProxy(sourcePort) {
+      return new Promise(resolve => {
+        const app = express();
+
+        app.use((req, res, next) => {
+          hijackResponse(res, (hijackedResponseBody, res) => {
+            res.setHeader("X-Hijacked", "yes!");
+            res.setHeader("transfer-encoding", "chunked"); // not set on > 0.10
+            res.removeHeader("Content-Length"); // only set on > 0.10
+            hijackedResponseBody.pipe(res);
+          });
+          next();
+        });
+
+        app.use(
+          require("http-proxy-middleware")({
+            target: "http://localhost:" + sourcePort,
+            changeOrigin: true,
+            logLevel: "silent"
+          })
+        );
+
+        const proxy = http.Server(app);
+
+        proxy.listen(0, () => {
+          resolve({
+            port: proxy.address().port,
+            close: () => proxy.close()
+          });
+        });
+      });
+    }
+
+    function makeRequest(proxyPort) {
+      return new Promise(resolve => {
         require("http").get(
           {
             host: "localhost",
-            port: self.proxyPort,
+            port: proxyPort,
             path: "",
             agent: false
           },
-          function(res) {
-            resolve(res);
-          }
+          res => resolve(res)
         );
-      }).then(function(res) {
-        return expect(res.headers, "to exhaustively satisfy", {
+      });
+    }
+
+    it("should not mangle response message", async () => {
+      const source = await createApp();
+      const proxy = await createProxy(source.port);
+
+      try {
+        const res = await makeRequest(proxy.port);
+
+        await expect(res.headers, "to exhaustively satisfy", {
           "x-powered-by": "Express",
           "content-type": /text\/plain/,
           "transfer-encoding": "chunked",
@@ -332,11 +340,10 @@ describe("Express Integration Tests", function() {
           "x-source": "yes!",
           "x-hijacked": "yes!"
         });
-      });
-    });
-    after(function() {
-      this.proxy.close();
-      this.source.close();
+      } finally {
+        proxy.close();
+        source.close();
+      }
     });
   });
 });
