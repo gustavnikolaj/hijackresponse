@@ -40,22 +40,17 @@ var hijackResponse = require("hijackresponse");
 
 var app = express();
 
-app.use(function(req, res, next) {
-  hijackResponse(res, function(err, res) {
-    if (err) {
-      res.unhijack(); // Make the original res object work again
-      return next(err);
-    }
-
+app.use((req, res, next) => {
+  hijackResponse(res, (hijackedResponseBody, res) => {
     // Don't hijack HTML responses:
     if (/^text\/html(?:;$)/.test(res.getHeader("Content-Type"))) {
-      return res.unhijack();
+      return hijackedResponseBody.pipe(res);
     }
 
     res.setHeader("X-Hijacked", "yes!");
     res.removeHeader("Content-Length");
 
-    res.pipe(transformStream).pipe(res);
+    hijackedResponseBody.pipe(transformStream).pipe(res);
   });
   // next() must be called explicitly, even when hijacking the response:
   next();
