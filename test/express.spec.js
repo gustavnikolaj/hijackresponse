@@ -3,12 +3,14 @@ var http = require("http");
 var expect = require("unexpected")
   .clone()
   .use(require("unexpected-express"))
-  .addAssertion("to yield response", function(expect, subject, value) {
-    return expect(subject, "to yield exchange", {
-      request: "GET /",
-      response: value
-    });
-  });
+  .addAssertion(
+    "<object> to yield response <object|string>",
+    (expect, subject, value) =>
+      expect(subject, "to yield exchange", {
+        request: "GET /",
+        response: value
+      })
+  );
 var path = require("path");
 var express = require("express");
 var hijackResponse = require("../lib/hijackResponse");
