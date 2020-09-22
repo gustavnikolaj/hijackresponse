@@ -22,7 +22,11 @@ module.exports = function createTestServer(serverImplementation) {
       const req = http.get({ port: listener.address().port });
 
       req.once("response", res => {
-        const value = { statusCode: res.statusCode, headers: res.headers };
+        const value = {
+          statusCode: res.statusCode,
+          statusMessage: res.statusMessage,
+          headers: res.headers
+        };
         const contentType = res.headers && res.headers["content-type"];
         const chunks = [];
         res

@@ -321,4 +321,25 @@ describe("hijackResponse", () => {
       });
     });
   });
+
+  describe("setters/getters", () => {
+    it("should allow setting and reading a status message through the inner res", () => {
+      const request = createTestServer((req, res) => {
+        hijackResponse(res, (responseBody, res) => {
+          if (res.statusMessage !== "Created") {
+            res.statusMessage = "Created";
+          }
+          responseBody.pipe(res);
+        });
+        res.statusCode = 201;
+        res.statusMessage = "CRATED!";
+        res.end();
+      });
+
+      return expect(request(), "when fulfilled", "to satisfy", {
+        statusCode: 201,
+        statusMessage: "Created"
+      });
+    });
+  });
 });
