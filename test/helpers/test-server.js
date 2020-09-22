@@ -33,7 +33,7 @@ module.exports = function createTestServer(serverImplementation) {
           .on("data", chunk => {
             chunks.push(chunk);
           })
-          .on("end", function() {
+          .on("end", () => {
             const responseBody = Buffer.concat(chunks);
             value.rawBody = responseBody;
 
