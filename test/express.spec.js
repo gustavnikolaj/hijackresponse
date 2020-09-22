@@ -170,7 +170,6 @@ describe("Express Integration Tests", function() {
       var app = express()
         .use(function(req, res, next) {
           hijackResponse(res, function(hijackResponseBody, res) {
-            // res.unhijack(true);
             hijackResponseBody.pipe(res);
           });
           next();
@@ -284,8 +283,8 @@ describe("Express Integration Tests", function() {
         app.use((req, res, next) => {
           hijackResponse(res, (hijackedResponseBody, res) => {
             res.setHeader("X-Hijacked", "yes!");
-            res.setHeader("transfer-encoding", "chunked"); // not set on > 0.10
-            res.removeHeader("Content-Length"); // only set on > 0.10
+            res.setHeader("transfer-encoding", "chunked");
+            res.removeHeader("Content-Length");
             hijackedResponseBody.pipe(res);
           });
           next();
