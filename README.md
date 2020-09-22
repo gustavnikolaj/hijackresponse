@@ -25,7 +25,6 @@ of transpiler and preprocessing middleware:
 - [express-processimage](https://github.com/papandreou/express-processimage)
 - [express-extractheaders](https://github.com/papandreou/express-extractheaders)
 - [express-autoprefixer](https://github.com/gustavnikolaj/express-autoprefixer)
-- [express-jsxtransform](https://github.com/gustavnikolaj/express-jsxtransform)
 
 ## Installation
 
