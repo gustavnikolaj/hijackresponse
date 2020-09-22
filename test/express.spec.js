@@ -11,29 +11,25 @@ var expect = require("unexpected")
   });
 var path = require("path");
 var express = require("express");
-var passError = require("passerror");
 var hijackResponse = require("../lib/hijackResponse");
 
 describe("Express Integration Tests", function() {
   it("simple case", function() {
     var app = express()
       .use(function(req, res, next) {
-        hijackResponse(
-          res,
-          passError(next, function(hijackedResponseBody, res) {
-            var chunks = [];
-            hijackedResponseBody.on("data", function(chunk) {
-              chunks.push(chunk);
-            });
-            hijackedResponseBody.on("end", function() {
-              var result = Buffer.concat(chunks)
-                .toString("utf-8")
-                .toUpperCase();
-              res.write(Buffer.from(result));
-              res.end();
-            });
-          })
-        );
+        hijackResponse(res, function(hijackedResponseBody, res) {
+          var chunks = [];
+          hijackedResponseBody.on("data", function(chunk) {
+            chunks.push(chunk);
+          });
+          hijackedResponseBody.on("end", function() {
+            var result = Buffer.concat(chunks)
+              .toString("utf-8")
+              .toUpperCase();
+            res.write(Buffer.from(result));
+            res.end();
+          });
+        });
         next();
       })
       .use(function(req, res, next) {
@@ -50,23 +46,20 @@ describe("Express Integration Tests", function() {
   it("simple case altering status code", function() {
     var app = express()
       .use(function(req, res, next) {
-        hijackResponse(
-          res,
-          passError(next, function(hijackedResponseBody, res) {
-            var chunks = [];
-            hijackedResponseBody.on("data", function(chunk) {
-              chunks.push(chunk);
-            });
-            hijackedResponseBody.on("end", function() {
-              res.status(201);
-              var result = Buffer.concat(chunks)
-                .toString("utf-8")
-                .toUpperCase();
-              res.write(Buffer.from(result));
-              res.end();
-            });
-          })
-        );
+        hijackResponse(res, function(hijackedResponseBody, res) {
+          var chunks = [];
+          hijackedResponseBody.on("data", function(chunk) {
+            chunks.push(chunk);
+          });
+          hijackedResponseBody.on("end", function() {
+            res.status(201);
+            var result = Buffer.concat(chunks)
+              .toString("utf-8")
+              .toUpperCase();
+            res.write(Buffer.from(result));
+            res.end();
+          });
+        });
         next();
       })
       .use(function(req, res, next) {
@@ -84,12 +77,9 @@ describe("Express Integration Tests", function() {
     it("Create a test server that pipes the hijacked response into itself, then do a request against it (simple variant)", function() {
       var app = express()
         .use(function(req, res, next) {
-          hijackResponse(
-            res,
-            passError(next, function(hijackedResponseBody, res) {
-              hijackedResponseBody.pipe(res);
-            })
-          );
+          hijackResponse(res, function(hijackedResponseBody, res) {
+            hijackedResponseBody.pipe(res);
+          });
           next();
         })
         .use(function(req, res, next) {
@@ -101,12 +91,9 @@ describe("Express Integration Tests", function() {
     it("Create a test server that pipes the hijacked response into itself, then do a request against it (streaming variant)", function() {
       var app = express()
         .use(function(req, res, next) {
-          hijackResponse(
-            res,
-            passError(next, function(hijackedResponseBody, res) {
-              hijackedResponseBody.pipe(res);
-            })
-          );
+          hijackResponse(res, function(hijackedResponseBody, res) {
+            hijackedResponseBody.pipe(res);
+          });
           next();
         })
         .use(function(req, res, next) {
@@ -129,14 +116,11 @@ describe("Express Integration Tests", function() {
     it("Create a test server that pipes the original response through a buffered stream, then do a request against it (simple variant)", function() {
       var app = express()
         .use(function(req, res, next) {
-          hijackResponse(
-            res,
-            passError(next, function(hijackedResponseBody, res) {
-              var bufferedStream = new (require("bufferedstream"))();
-              hijackedResponseBody.pipe(bufferedStream);
-              bufferedStream.pipe(res);
-            })
-          );
+          hijackResponse(res, function(hijackedResponseBody, res) {
+            var bufferedStream = new (require("bufferedstream"))();
+            hijackedResponseBody.pipe(bufferedStream);
+            bufferedStream.pipe(res);
+          });
           next();
         })
         .use(function(req, res, next) {
@@ -148,14 +132,11 @@ describe("Express Integration Tests", function() {
     it("Create a test server that pipes the original response through a buffered stream, then do a request against it (streaming variant)", function() {
       var app = express()
         .use(function(req, res, next) {
-          hijackResponse(
-            res,
-            passError(next, function(hijackedResponseBody, res) {
-              var bufferedStream = new (require("bufferedstream"))();
-              hijackedResponseBody.pipe(bufferedStream);
-              bufferedStream.pipe(res);
-            })
-          );
+          hijackResponse(res, function(hijackedResponseBody, res) {
+            var bufferedStream = new (require("bufferedstream"))();
+            hijackedResponseBody.pipe(bufferedStream);
+            bufferedStream.pipe(res);
+          });
           next();
         })
         .use(function(req, res, next) {
@@ -169,14 +150,11 @@ describe("Express Integration Tests", function() {
     it.skip("Create a test server that hijacks the response and passes an error to next(), then run a request against it", function() {
       var app = express()
         .use(function(req, res, next) {
-          hijackResponse(
-            res,
-            passError(function(res) {
-              res.unhijack(function(res) {
-                next(new Error("Error!"));
-              });
-            })
-          );
+          hijackResponse(res, function(res) {
+            res.unhijack(function(res) {
+              next(new Error("Error!"));
+            });
+          });
           next();
         })
         .use(function(req, res, next) {
@@ -189,13 +167,10 @@ describe("Express Integration Tests", function() {
     it("Create a test server that hijacks the response and immediately unhijacks it, then run a request against it", function() {
       var app = express()
         .use(function(req, res, next) {
-          hijackResponse(
-            res,
-            passError(next, function(hijackResponseBody, res) {
-              // res.unhijack(true);
-              hijackResponseBody.pipe(res);
-            })
-          );
+          hijackResponse(res, function(hijackResponseBody, res) {
+            // res.unhijack(true);
+            hijackResponseBody.pipe(res);
+          });
           next();
         })
         .use(function(req, res, next) {
@@ -211,12 +186,9 @@ describe("Express Integration Tests", function() {
       express()
         .use(require("compression")())
         .use(function(req, res, next) {
-          hijackResponse(
-            res,
-            passError(next, function(hijackedResponseBody, res) {
-              hijackedResponseBody.pipe(res);
-            })
-          );
+          hijackResponse(res, function(hijackedResponseBody, res) {
+            hijackedResponseBody.pipe(res);
+          });
           next();
         })
         .use(express.static(path.resolve(__dirname, "fixtures"))),
@@ -242,7 +214,7 @@ describe("Express Integration Tests", function() {
             next();
           })
           .use(function(req, res, next) {
-            hijackResponse(res, (err, hijackedResponseBody, res) =>
+            hijackResponse(res, (hijackedResponseBody, res) =>
               hijackedResponseBody.pipe(res)
             );
             next();
@@ -306,10 +278,7 @@ describe("Express Integration Tests", function() {
             var app = express();
 
             app.use(function(req, res, next) {
-              hijackResponse(res, function(err, hijackedResponseBody, res) {
-                if (err) {
-                  return next(err);
-                }
+              hijackResponse(res, function(hijackedResponseBody, res) {
                 res.setHeader("X-Hijacked", "yes!");
                 res.setHeader("transfer-encoding", "chunked"); // not set on > 0.10
                 res.removeHeader("Content-Length"); // only set on > 0.10

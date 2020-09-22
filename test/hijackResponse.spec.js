@@ -6,7 +6,7 @@ const stream = require("stream");
 describe("hijackResponse", () => {
   it("should be able to hijack a reponse and rewrite it", () => {
     const request = createTestServer((req, res) => {
-      hijackResponse(res, (err, hijackedResponseBody, res) => {
+      hijackResponse(res, (hijackedResponseBody, res) => {
         let chunks = [];
 
         hijackedResponseBody.on("data", chunk => chunks.push(chunk));
@@ -26,7 +26,7 @@ describe("hijackResponse", () => {
 
   it("should pipe through a transform stream", () => {
     const request = createTestServer((req, res) => {
-      hijackResponse(res, (err, hijackedResponseBody, res) => {
+      hijackResponse(res, (hijackedResponseBody, res) => {
         const uppercaseStream = new stream.Transform({
           transform(chunk, encoding, callback) {
             if (encoding !== "utf-8") {
@@ -54,7 +54,7 @@ describe("hijackResponse", () => {
 
   it("should be able to pipe hijacked res into it self.", () => {
     const request = createTestServer((req, res) => {
-      hijackResponse(res, (err, hijackedResponseBody, res) =>
+      hijackResponse(res, (hijackedResponseBody, res) =>
         hijackedResponseBody.pipe(res)
       );
 
@@ -73,10 +73,10 @@ describe("hijackResponse", () => {
     const request = createTestServer((req, res) => {
       hijackResponse(
         res,
-        (err, hijackedResponseBody, res) => {
+        (hijackedResponseBody, res) => {
           hijackResponse(
             res,
-            (err, hijackedResponseBody, res) => {
+            (hijackedResponseBody, res) => {
               const chunks = [];
               hijackedResponseBody
                 .on("data", function innerHijackOnData(chunk) {
@@ -133,8 +133,8 @@ describe("hijackResponse", () => {
       });
 
     const request = createTestServer((req, res) => {
-      hijackResponse(res, (err, hijackedResponseBody, res) => {
-        hijackResponse(res, (err, hijackedResponseBody, res) => {
+      hijackResponse(res, (hijackedResponseBody, res) => {
+        hijackResponse(res, (hijackedResponseBody, res) => {
           hijackedResponseBody.pipe(appendToStream("qux")).pipe(res);
         });
         hijackedResponseBody.pipe(appendToStream("baz")).pipe(res);
@@ -159,9 +159,7 @@ describe("hijackResponse", () => {
 
   it("should write the last chunk", () => {
     const request = createTestServer((req, res) => {
-      hijackResponse(res, (err, hijackedResponseBody, res) =>
-        res.end("foobar")
-      );
+      hijackResponse(res, (hijackedResponseBody, res) => res.end("foobar"));
 
       res.setHeader("content-type", "text/plain");
       res.writeHead(200);
@@ -175,9 +173,7 @@ describe("hijackResponse", () => {
   describe("res.writeHead should trigger the hijackResponse callback", () => {
     it("when called without anything", () => {
       const request = createTestServer((req, res) => {
-        hijackResponse(res, (err, hijackedResponseBody, res) =>
-          res.end("foobar")
-        );
+        hijackResponse(res, (hijackedResponseBody, res) => res.end("foobar"));
 
         res.setHeader("content-type", "text/plain");
         res.writeHead();
@@ -190,9 +186,7 @@ describe("hijackResponse", () => {
 
     it("when called with only a status code", () => {
       const request = createTestServer((req, res) => {
-        hijackResponse(res, (err, hijackedResponseBody, res) =>
-          res.end("foobar")
-        );
+        hijackResponse(res, (hijackedResponseBody, res) => res.end("foobar"));
 
         res.setHeader("content-type", "text/plain");
         res.writeHead(200);
@@ -205,9 +199,7 @@ describe("hijackResponse", () => {
 
     it("when called with status code and headers", () => {
       const request = createTestServer((req, res) => {
-        hijackResponse(res, (err, hijackedResponseBody, res) =>
-          res.end("foobar")
-        );
+        hijackResponse(res, (hijackedResponseBody, res) => res.end("foobar"));
 
         res.writeHead(200, {
           "content-type": "text/plain"
@@ -223,7 +215,7 @@ describe("hijackResponse", () => {
   describe("res.write", () => {
     it("should work when called with a buffer", () => {
       const request = createTestServer((req, res) => {
-        hijackResponse(res, (err, hijackedResponseBody, res) =>
+        hijackResponse(res, (hijackedResponseBody, res) =>
           hijackedResponseBody.pipe(res)
         );
 
@@ -239,7 +231,7 @@ describe("hijackResponse", () => {
 
     it("should work when called with null", () => {
       const request = createTestServer((req, res) => {
-        hijackResponse(res, (err, hijackedResponseBody, res) =>
+        hijackResponse(res, (hijackedResponseBody, res) =>
           hijackedResponseBody.pipe(res)
         );
 
@@ -255,7 +247,7 @@ describe("hijackResponse", () => {
 
     it("should work when called with a string", () => {
       const request = createTestServer((req, res) => {
-        hijackResponse(res, (err, hijackedResponseBody, res) =>
+        hijackResponse(res, (hijackedResponseBody, res) =>
           hijackedResponseBody.pipe(res)
         );
 
@@ -271,7 +263,7 @@ describe("hijackResponse", () => {
 
     it("should work when called with a string and an encoding", () => {
       const request = createTestServer((req, res) => {
-        hijackResponse(res, (err, hijackedResponseBody, res) =>
+        hijackResponse(res, (hijackedResponseBody, res) =>
           hijackedResponseBody.pipe(res)
         );
 
@@ -289,7 +281,7 @@ describe("hijackResponse", () => {
   describe("res.end", () => {
     it("should call res._implicitHeader if it havent been called before", () => {
       const request = createTestServer((req, res) => {
-        hijackResponse(res, (err, hijackedResponseBody, res) =>
+        hijackResponse(res, (hijackedResponseBody, res) =>
           hijackedResponseBody.pipe(res)
         );
         res.end();
@@ -384,7 +376,7 @@ describe("hijackResponse", () => {
           res.end(JSON.stringify({ error: err.message }));
         }
 
-        hijackResponse(res, (err, responseBody, res) => {
+        hijackResponse(res, (responseBody, res) => {
           responseBody.on("data", () => {
             // after having seen the kind of data coming from responseBody stream, we decide to just
             // error out rather than try to do something useful with the
