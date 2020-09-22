@@ -293,20 +293,6 @@ describe("hijackResponse", () => {
     });
   });
 
-  describe.skip("res.unhijack", () => {
-    it("should allow the original data through if unhijacked", () => {
-      const request = createTestServer((req, res) => {
-        hijackResponse(res, (err, res) => res.unhijack());
-        res.setHeader("content-type", "text/plain");
-        setTimeout(() => res.end("foobar"), 10);
-      });
-
-      return expect(request(), "when fulfilled", "to satisfy", {
-        body: "foobar"
-      });
-    });
-  });
-
   describe.skip("#destroyHijacked", function() {
     it("should prevent hijackedRes from emitting more data", function() {
       let closeCalledCount = 0;
