@@ -46,6 +46,40 @@ describe("Express Integration Tests", function() {
       body: "FOOBAR"
     });
   });
+
+  it("simple case altering status code", function() {
+    var app = express()
+      .use(function(req, res, next) {
+        hijackResponse(
+          res,
+          passError(next, function(hijackedResponseBody, res) {
+            var chunks = [];
+            hijackedResponseBody.on("data", function(chunk) {
+              chunks.push(chunk);
+            });
+            hijackedResponseBody.on("end", function() {
+              res.status(201);
+              var result = Buffer.concat(chunks)
+                .toString("utf-8")
+                .toUpperCase();
+              res.write(Buffer.from(result));
+              res.end();
+            });
+          })
+        );
+        next();
+      })
+      .use(function(req, res, next) {
+        res.setHeader("Content-Type", "text/plain");
+        return res.end("foobar");
+      });
+
+    return expect(app, "to yield response", {
+      statusCode: 201,
+      body: "FOOBAR"
+    });
+  });
+
   describe("adapted from express-hijackresponse", function() {
     it("Create a test server that pipes the hijacked response into itself, then do a request against it (simple variant)", function() {
       var app = express()
