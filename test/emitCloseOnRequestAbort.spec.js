@@ -2,7 +2,7 @@ const expect = require("unexpected");
 const http = require("http");
 const hijackResponse = require("../lib/hijackResponse");
 
-describe("with a aborted request", function() {
+describe.skip("with a aborted request", function() {
   var handleRequest;
   var server;
   var serverAddress;
