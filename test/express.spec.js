@@ -146,7 +146,7 @@ describe("Express Integration Tests", function() {
       var app = express()
         .use(function(req, res, next) {
           hijackResponse(res, next).then(hijackedResponse => {
-            hijackedResponse.readable.destroyAndRestore();
+            hijackedResponse.destroyAndRestore();
             next(new Error("Error!"));
           });
         })

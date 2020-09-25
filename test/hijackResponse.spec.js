@@ -326,7 +326,7 @@ describe("hijackResponse", () => {
     });
   });
 
-  describe("hijackedResponse.readable#destroyAndRestore", () => {
+  describe("hijackedResponse#destroyAndRestore", () => {
     it("should restore the response so it works again for next(err) etc.", () => {
       const request = createTestServer((req, res) => {
         function simulatedNextCallBack(err) {
@@ -334,11 +334,11 @@ describe("hijackResponse", () => {
           res.end(JSON.stringify({ error: err.message }));
         }
 
-        hijackResponse(res).then(({ readable }) => {
+        hijackResponse(res).then(({ readable, destroyAndRestore }) => {
           readable.on("data", () => {
             // after having seen the kind of data coming from responseBody stream, we decide to just
             // error out rather than try to do something useful with the
-            readable.destroyAndRestore();
+            destroyAndRestore();
             simulatedNextCallBack(new Error("Nah"));
           });
         });
