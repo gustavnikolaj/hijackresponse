@@ -1,4 +1,3 @@
-/* global describe, it */
 var http = require("http");
 var expect = require("unexpected")
   .clone()
@@ -12,6 +11,7 @@ var expect = require("unexpected")
       })
   );
 var path = require("path");
+var stream = require("stream");
 var express = require("express");
 var hijackResponse = require("../lib/hijackResponse");
 
@@ -19,20 +19,19 @@ describe("Express Integration Tests", function() {
   it("simple case", function() {
     var app = express()
       .use(function(req, res, next) {
-        hijackResponse(res, function(hijackedResponseBody, res) {
-          var chunks = [];
-          hijackedResponseBody.on("data", function(chunk) {
-            chunks.push(chunk);
-          });
-          hijackedResponseBody.on("end", function() {
-            var result = Buffer.concat(chunks)
-              .toString("utf-8")
-              .toUpperCase();
-            res.write(Buffer.from(result));
-            res.end();
-          });
+        hijackResponse(res, next).then(({ readable, writable }) => {
+          const chunks = [];
+
+          readable
+            .on("data", chunk => chunks.push(chunk))
+            .on("end", () => {
+              const asUpperCase = Buffer.concat(chunks)
+                .toString("utf-8")
+                .toUpperCase();
+              writable.write(Buffer.from(asUpperCase));
+              writable.end();
+            });
         });
-        next();
       })
       .use(function(req, res, next) {
         res.setHeader("Content-Type", "text/plain");
@@ -48,21 +47,19 @@ describe("Express Integration Tests", function() {
   it("simple case altering status code", function() {
     var app = express()
       .use(function(req, res, next) {
-        hijackResponse(res, function(hijackedResponseBody, res) {
-          var chunks = [];
-          hijackedResponseBody.on("data", function(chunk) {
-            chunks.push(chunk);
-          });
-          hijackedResponseBody.on("end", function() {
-            res.status(201);
-            var result = Buffer.concat(chunks)
-              .toString("utf-8")
-              .toUpperCase();
-            res.write(Buffer.from(result));
-            res.end();
-          });
+        hijackResponse(res, next).then(hijackedResponse => {
+          const chunks = [];
+          hijackedResponse.readable
+            .on("data", chunk => chunks.push(chunk))
+            .on("end", () => {
+              res.status(201);
+              const result = Buffer.concat(chunks)
+                .toString("utf-8")
+                .toUpperCase();
+              hijackedResponse.writable.write(Buffer.from(result));
+              hijackedResponse.writable.end();
+            });
         });
-        next();
       })
       .use(function(req, res, next) {
         res.setHeader("Content-Type", "text/plain");
@@ -79,10 +76,9 @@ describe("Express Integration Tests", function() {
     it("Create a test server that pipes the hijacked response into itself, then do a request against it (simple variant)", function() {
       var app = express()
         .use(function(req, res, next) {
-          hijackResponse(res, function(hijackedResponseBody, res) {
-            hijackedResponseBody.pipe(res);
+          hijackResponse(res, next).then(hijackedResponse => {
+            hijackedResponse.readable.pipe(hijackedResponse.writable);
           });
-          next();
         })
         .use(function(req, res, next) {
           res.send("foo");
@@ -93,10 +89,9 @@ describe("Express Integration Tests", function() {
     it("Create a test server that pipes the hijacked response into itself, then do a request against it (streaming variant)", function() {
       var app = express()
         .use(function(req, res, next) {
-          hijackResponse(res, function(hijackedResponseBody, res) {
-            hijackedResponseBody.pipe(res);
+          hijackResponse(res, next).then(hijackedResponse => {
+            hijackedResponse.readable.pipe(hijackedResponse.writable);
           });
-          next();
         })
         .use(function(req, res, next) {
           var num = 0;
@@ -118,12 +113,11 @@ describe("Express Integration Tests", function() {
     it("Create a test server that pipes the original response through a buffered stream, then do a request against it (simple variant)", function() {
       var app = express()
         .use(function(req, res, next) {
-          hijackResponse(res, function(hijackedResponseBody, res) {
+          hijackResponse(res, next).then(hijackedResponse => {
             var bufferedStream = new (require("bufferedstream"))();
-            hijackedResponseBody.pipe(bufferedStream);
-            bufferedStream.pipe(res);
+            hijackedResponse.readable.pipe(bufferedStream);
+            bufferedStream.pipe(hijackedResponse.writable);
           });
-          next();
         })
         .use(function(req, res, next) {
           res.send("foo");
@@ -134,12 +128,11 @@ describe("Express Integration Tests", function() {
     it("Create a test server that pipes the original response through a buffered stream, then do a request against it (streaming variant)", function() {
       var app = express()
         .use(function(req, res, next) {
-          hijackResponse(res, function(hijackedResponseBody, res) {
+          hijackResponse(res, next).then(hijackedResponse => {
             var bufferedStream = new (require("bufferedstream"))();
-            hijackedResponseBody.pipe(bufferedStream);
-            bufferedStream.pipe(res);
+            hijackedResponse.readable.pipe(bufferedStream);
+            bufferedStream.pipe(hijackedResponse.writable);
           });
-          next();
         })
         .use(function(req, res, next) {
           res.contentType("text/plain");
@@ -149,30 +142,33 @@ describe("Express Integration Tests", function() {
 
       return expect(app, "to yield response", "foobar");
     });
-    it.skip("Create a test server that hijacks the response and passes an error to next(), then run a request against it", function() {
+    it("Create a test server that hijacks the response and passes an error to next(), then run a request against it", function() {
       var app = express()
         .use(function(req, res, next) {
-          hijackResponse(res, function(res) {
-            res.unhijack(function(res) {
-              next(new Error("Error!"));
-            });
+          hijackResponse(res, next).then(hijackedResponse => {
+            hijackedResponse.readable.destroyAndRestore();
+            next(new Error("Error!"));
           });
-          next();
         })
         .use(function(req, res, next) {
           res.send("foo");
         })
         .use(require("errorhandler")({ log: false }));
 
-      return expect(app, "to yield response", 500);
+      return expect(app, "to yield response", {
+        statusCode: 500
+      });
     });
     it("Create a test server that hijacks the response and immediately unhijacks it, then run a request against it", function() {
+      // Immediately unhijacking is a reference to an old api where you had to
+      // call an unhijack method to undo the patches to res. Now the way to
+      // accomplish the same is just to pipe the readable and writeable streams
+      // together.
       var app = express()
         .use(function(req, res, next) {
-          hijackResponse(res, function(hijackResponseBody, res) {
-            hijackResponseBody.pipe(res);
+          hijackResponse(res, next).then(hijackedResponse => {
+            hijackedResponse.readable.pipe(hijackedResponse.writable);
           });
-          next();
         })
         .use(function(req, res, next) {
           res.send("foo");
@@ -187,10 +183,9 @@ describe("Express Integration Tests", function() {
       express()
         .use(require("compression")())
         .use(function(req, res, next) {
-          hijackResponse(res, function(hijackedResponseBody, res) {
-            hijackedResponseBody.pipe(res);
+          hijackResponse(res, next).then(({ readable, writable }) => {
+            readable.pipe(writable);
           });
-          next();
         })
         .use(express.static(path.resolve(__dirname, "fixtures"))),
       "to yield exchange",
@@ -200,6 +195,43 @@ describe("Express Integration Tests", function() {
       }
     );
   });
+
+  it("should support multiple hijacking middlewares in the same chain", () => {
+    const appendToStream = value =>
+      new stream.Transform({
+        transform(chunk, encoding, cb) {
+          this.push(chunk);
+          cb();
+        },
+        flush(cb) {
+          this.push(Buffer.from(value));
+          cb();
+        }
+      });
+
+    return expect(
+      express()
+        .use(function(req, res, next) {
+          hijackResponse(res, next).then(({ readable, writable }) => {
+            readable.pipe(appendToStream("qux")).pipe(writable);
+          });
+        })
+        .use(function(req, res, next) {
+          hijackResponse(res, next).then(({ readable, writable }) => {
+            readable.pipe(appendToStream("baz")).pipe(writable);
+          });
+        })
+        .use((req, res, next) => {
+          res.send("foobar");
+        }),
+      "to yield exchange",
+      {
+        request: "GET /",
+        response: { body: "foobarbazqux" }
+      }
+    );
+  });
+
   describe("against a real server", function() {
     function createServer(closeSpy) {
       return new Promise(function(resolve) {
@@ -209,10 +241,9 @@ describe("Express Integration Tests", function() {
             next();
           })
           .use(function(req, res, next) {
-            hijackResponse(res, (hijackedResponseBody, res) =>
-              hijackedResponseBody.pipe(res)
-            );
-            next();
+            hijackResponse(res, next).then(hijackedResponse => {
+              hijackedResponse.readable.pipe(hijackedResponse.writable);
+            });
           })
           .use(function(req, res) {
             res.write("foo");
@@ -281,13 +312,12 @@ describe("Express Integration Tests", function() {
         const app = express();
 
         app.use((req, res, next) => {
-          hijackResponse(res, (hijackedResponseBody, res) => {
+          hijackResponse(res, next).then(hijackedResponse => {
             res.setHeader("X-Hijacked", "yes!");
             res.setHeader("transfer-encoding", "chunked");
             res.removeHeader("Content-Length");
-            hijackedResponseBody.pipe(res);
+            hijackedResponse.readable.pipe(hijackedResponse.writable);
           });
-          next();
         });
 
         app.use(
