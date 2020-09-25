@@ -2,6 +2,7 @@ const createTestServer = require("./helpers/test-server");
 const expect = require("unexpected");
 const hijackResponse = require("../lib/hijackResponse");
 const stream = require("stream");
+const { ServerResponse, IncomingMessage } = require("http");
 
 describe("hijackResponse", () => {
   it("should be able to hijack a reponse and rewrite it", () => {
@@ -76,57 +77,24 @@ describe("hijackResponse", () => {
     });
   });
 
-  it.skip("should be able to hijack an already hijacked response (nested)", () => {
-    const request = createTestServer((req, res) => {
-      hijackResponse(
-        res,
-        (hijackedResponseBody, res) => {
-          hijackResponse(
-            res,
-            (hijackedResponseBody, res) => {
-              const chunks = [];
-              hijackedResponseBody
-                .on("data", function innerHijackOnData(chunk) {
-                  chunks.push(chunk);
-                })
-                .on("end", () => {
-                  res.setHeader("X-qux", "hijacked");
-                  res.write(Buffer.concat(chunks));
-                  res.end("qux");
-                });
-            },
-            "inner"
-          );
+  it("should not be able to hijack a hijackedResponse writable", () => {
+    const req = new IncomingMessage();
+    const res = new ServerResponse(req);
 
-          res.setHeader("X-bar", "hijacked");
-          hijackedResponseBody
-            .on("data", function outerHijackOnData(chunk) {
-              res.write(chunk);
-            })
-            .on("end", () => {
-              res.write("bar");
-              res.end();
-            });
-        },
-        "outer"
-      );
-
-      res.setHeader("Content-Type", "text/plain");
-      res.write("foo");
-      res.end();
+    const hijackResponsePromise = hijackResponse(res).then(hijackedResponse => {
+      return hijackResponse(hijackedResponse.writable).then(() => {});
     });
 
-    return expect(request(), "when fulfilled", "to satisfy", {
-      headers: {
-        "content-type": "text/plain",
-        "x-bar": "hijacked",
-        "x-qux": "hijacked"
-      },
-      body: "foobarqux"
-    });
+    res.writeHead(200);
+
+    return expect(
+      hijackResponsePromise,
+      "to be rejected with",
+      "You cannot hijack a hijacked response."
+    );
   });
 
-  it("should be able to hijack an already hijacked response (sequential)", () => {
+  it("should be able to hijack an already hijacked response", () => {
     const request = createTestServer((req, res) => {
       hijackResponse(res).then(({ readable, writable }) => {
         const chunks = [];
@@ -168,50 +136,7 @@ describe("hijackResponse", () => {
     });
   });
 
-  it.skip("should be able to hijack an already hijacked response when piping (nested)", () => {
-    const appendToStream = value =>
-      new stream.Transform({
-        transform(chunk, encoding, cb) {
-          this.push(chunk);
-          cb();
-        },
-        flush(cb) {
-          this.push(Buffer.from(value));
-          cb();
-        }
-      });
-
-    const request = createTestServer((req, res) => {
-      hijackResponse(res).then(hijackedResponse => {
-        hijackResponse(res).then(hijackedResponse => {
-          hijackedResponse.readable
-            .pipe(appendToStream("qux"))
-            .pipe(hijackedResponse.writable);
-        });
-
-        hijackedResponse.readable
-          .pipe(appendToStream("baz"))
-          .pipe(hijackedResponse.writable);
-      });
-
-      res.setHeader("Content-Type", "text/plain");
-
-      let num = 0;
-      const tick = () => {
-        res.write("foo");
-        num += 1;
-        if (num < 5) return setImmediate(tick);
-        res.end("bar");
-      };
-      tick();
-    });
-
-    return expect(request(), "when fulfilled", "to satisfy", {
-      body: "foofoofoofoofoobarbazqux"
-    });
-  });
-
-  it("should be able to hijack an already hijacked response when piping (sequential)", () => {
+  it("should be able to hijack an already hijacked response when piping", () => {
     const appendToStream = value =>
       new stream.Transform({
         transform(chunk, encoding, cb) {
