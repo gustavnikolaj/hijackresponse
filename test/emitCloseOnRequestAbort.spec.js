@@ -2,7 +2,7 @@ const expect = require("unexpected");
 const http = require("http");
 const hijackResponse = require("../lib/hijackResponse");
 
-describe.skip("with a aborted request", function() {
+describe("with a aborted request", function() {
   var handleRequest;
   var server;
   var serverAddress;
@@ -30,10 +30,9 @@ describe.skip("with a aborted request", function() {
   it("should emit the close event on the hijacked response", function() {
     return expect.promise(function(run) {
       handleRequest = run(function(req, res) {
-        hijackResponse(
-          res,
-          run(function(hijackedResponseBody, res) {
-            res.on(
+        hijackResponse(res).then(
+          run(({ writable }) => {
+            writable.on(
               "close",
               run(function() {})
             );

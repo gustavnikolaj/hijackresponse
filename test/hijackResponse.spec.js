@@ -182,10 +182,12 @@ describe("hijackResponse", () => {
     });
   });
 
-  describe.skip("res.writeHead should trigger the hijackResponse callback", () => {
+  describe("res.writeHead should trigger the hijackResponse callback", () => {
     it("when called without anything", () => {
       const request = createTestServer((req, res) => {
-        hijackResponse(res, (hijackedResponseBody, res) => res.end("foobar"));
+        hijackResponse(res).then(hijacked => {
+          hijacked.writable.end("foobar");
+        });
 
         res.setHeader("content-type", "text/plain");
         res.writeHead();
@@ -198,7 +200,9 @@ describe("hijackResponse", () => {
 
     it("when called with only a status code", () => {
       const request = createTestServer((req, res) => {
-        hijackResponse(res, (hijackedResponseBody, res) => res.end("foobar"));
+        hijackResponse(res).then(hijacked => {
+          hijacked.writable.end("foobar");
+        });
 
         res.setHeader("content-type", "text/plain");
         res.writeHead(200);
@@ -211,7 +215,9 @@ describe("hijackResponse", () => {
 
     it("when called with status code and headers", () => {
       const request = createTestServer((req, res) => {
-        hijackResponse(res, (hijackedResponseBody, res) => res.end("foobar"));
+        hijackResponse(res).then(hijacked => {
+          hijacked.writable.end("foobar");
+        });
 
         res.writeHead(200, {
           "content-type": "text/plain"
@@ -224,12 +230,12 @@ describe("hijackResponse", () => {
     });
   });
 
-  describe.skip("res.write", () => {
+  describe("res.write", () => {
     it("should work when called with a buffer", () => {
       const request = createTestServer((req, res) => {
-        hijackResponse(res, (hijackedResponseBody, res) =>
-          hijackedResponseBody.pipe(res)
-        );
+        hijackResponse(res).then(hijacked => {
+          hijacked.readable.pipe(hijacked.writable);
+        });
 
         res.setHeader("content-type", "text/plain");
         res.write(Buffer.from("foobar", "utf-8"));
@@ -243,9 +249,9 @@ describe("hijackResponse", () => {
 
     it("should work when called with null", () => {
       const request = createTestServer((req, res) => {
-        hijackResponse(res, (hijackedResponseBody, res) =>
-          hijackedResponseBody.pipe(res)
-        );
+        hijackResponse(res).then(hijacked => {
+          hijacked.readable.pipe(hijacked.writable);
+        });
 
         res.setHeader("content-type", "text/plain");
         res.write(Buffer.from("foobar"));
@@ -259,9 +265,9 @@ describe("hijackResponse", () => {
 
     it("should work when called with a string", () => {
       const request = createTestServer((req, res) => {
-        hijackResponse(res, (hijackedResponseBody, res) =>
-          hijackedResponseBody.pipe(res)
-        );
+        hijackResponse(res).then(hijacked => {
+          hijacked.readable.pipe(hijacked.writable);
+        });
 
         res.setHeader("content-type", "text/plain");
         res.write("foobar");
@@ -275,9 +281,9 @@ describe("hijackResponse", () => {
 
     it("should work when called with a string and an encoding", () => {
       const request = createTestServer((req, res) => {
-        hijackResponse(res, (hijackedResponseBody, res) =>
-          hijackedResponseBody.pipe(res)
-        );
+        hijackResponse(res).then(hijacked => {
+          hijacked.readable.pipe(hijacked.writable);
+        });
 
         res.setHeader("content-type", "text/plain");
         res.write("foobar", "utf-8");
@@ -290,12 +296,12 @@ describe("hijackResponse", () => {
     });
   });
 
-  describe.skip("res.end", () => {
+  describe("res.end", () => {
     it("should call res._implicitHeader if it havent been called before", () => {
       const request = createTestServer((req, res) => {
-        hijackResponse(res, (hijackedResponseBody, res) =>
-          hijackedResponseBody.pipe(res)
-        );
+        hijackResponse(res).then(hijacked => {
+          hijacked.readable.pipe(hijacked.writable);
+        });
         res.end();
       });
 
@@ -305,7 +311,7 @@ describe("hijackResponse", () => {
     });
   });
 
-  describe.skip("hijackedResponseBody#destroyAndRestore", () => {
+  describe("hijackedResponse.readable#destroyAndRestore", () => {
     it("should restore the response so it works again for next(err) etc.", () => {
       const request = createTestServer((req, res) => {
         function simulatedNextCallBack(err) {
@@ -313,14 +319,15 @@ describe("hijackResponse", () => {
           res.end(JSON.stringify({ error: err.message }));
         }
 
-        hijackResponse(res, (responseBody, res) => {
-          responseBody.on("data", () => {
+        hijackResponse(res).then(({ readable }) => {
+          readable.on("data", () => {
             // after having seen the kind of data coming from responseBody stream, we decide to just
             // error out rather than try to do something useful with the
-            responseBody.destroyAndRestore();
+            readable.destroyAndRestore();
             simulatedNextCallBack(new Error("Nah"));
           });
         });
+
         res.setHeader("content-type", "text/plain");
         res.write("GARBAGE REDACTED");
       });
@@ -334,15 +341,19 @@ describe("hijackResponse", () => {
     });
   });
 
-  describe.skip("setters/getters", () => {
+  describe("setters/getters", () => {
     it("should allow setting and reading a status message through the inner res", () => {
+      // TODO: We might want to retire this bit of the API. writable is not
+      //       intended to masquerade as a res anymore.
       const request = createTestServer((req, res) => {
-        hijackResponse(res, (responseBody, res) => {
-          if (res.statusMessage !== "Created") {
-            res.statusMessage = "Created";
+        hijackResponse(res).then(hijackedResponse => {
+          if (hijackedResponse.writable.statusMessage !== "Created") {
+            hijackedResponse.writable.statusMessage = "Created";
           }
-          responseBody.pipe(res);
+
+          hijackedResponse.readable.pipe(hijackedResponse.writable);
         });
+
         res.statusCode = 201;
         res.statusMessage = "CRATED!";
         res.end();
