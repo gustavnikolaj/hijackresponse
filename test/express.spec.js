@@ -11,6 +11,7 @@ var expect = require("unexpected")
       })
   );
 var path = require("path");
+var stream = require("stream");
 var express = require("express");
 var hijackResponse = require("../lib/hijackResponse");
 
@@ -194,6 +195,43 @@ describe("Express Integration Tests", function() {
       }
     );
   });
+
+  it("should support multiple hijacking middlewares in the same chain", () => {
+    const appendToStream = value =>
+      new stream.Transform({
+        transform(chunk, encoding, cb) {
+          this.push(chunk);
+          cb();
+        },
+        flush(cb) {
+          this.push(Buffer.from(value));
+          cb();
+        }
+      });
+
+    return expect(
+      express()
+        .use(function(req, res, next) {
+          hijackResponse(res, next).then(({ readable, writable }) => {
+            readable.pipe(appendToStream("qux")).pipe(writable);
+          });
+        })
+        .use(function(req, res, next) {
+          hijackResponse(res, next).then(({ readable, writable }) => {
+            readable.pipe(appendToStream("baz")).pipe(writable);
+          });
+        })
+        .use((req, res, next) => {
+          res.send("foobar");
+        }),
+      "to yield exchange",
+      {
+        request: "GET /",
+        response: { body: "foobarbazqux" }
+      }
+    );
+  });
+
   describe("against a real server", function() {
     function createServer(closeSpy) {
       return new Promise(function(resolve) {

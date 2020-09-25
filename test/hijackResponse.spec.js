@@ -76,7 +76,7 @@ describe("hijackResponse", () => {
     });
   });
 
-  it.skip("should be able to hijack an already hijacked response", () => {
+  it.skip("should be able to hijack an already hijacked response (nested)", () => {
     const request = createTestServer((req, res) => {
       hijackResponse(
         res,
@@ -126,7 +126,49 @@ describe("hijackResponse", () => {
     });
   });
 
-  it.skip("should be able to hijack an already hijacked response when piping", () => {
+  it("should be able to hijack an already hijacked response (sequential)", () => {
+    const request = createTestServer((req, res) => {
+      hijackResponse(res).then(({ readable, writable }) => {
+        const chunks = [];
+        readable
+          .on("data", function innerHijackOnData(chunk) {
+            chunks.push(chunk);
+          })
+          .on("end", () => {
+            res.setHeader("X-qux", "hijacked");
+            writable.write(Buffer.concat(chunks));
+            writable.end("qux");
+          });
+      });
+
+      hijackResponse(res).then(({ readable, writable }) => {
+        res.setHeader("X-bar", "hijacked");
+        readable
+          .on("data", function outerHijackOnData(chunk) {
+            writable.write(chunk);
+          })
+          .on("end", () => {
+            writable.write("bar");
+            writable.end();
+          });
+      });
+
+      res.setHeader("Content-Type", "text/plain");
+      res.write("foo");
+      res.end();
+    });
+
+    return expect(request(), "when fulfilled", "to satisfy", {
+      headers: {
+        "content-type": "text/plain",
+        "x-bar": "hijacked",
+        "x-qux": "hijacked"
+      },
+      body: "foobarqux"
+    });
+  });
+
+  it.skip("should be able to hijack an already hijacked response when piping (nested)", () => {
     const appendToStream = value =>
       new stream.Transform({
         transform(chunk, encoding, cb) {
@@ -140,11 +182,59 @@ describe("hijackResponse", () => {
       });
 
     const request = createTestServer((req, res) => {
-      hijackResponse(res, (hijackedResponseBody, res) => {
-        hijackResponse(res, (hijackedResponseBody, res) => {
-          hijackedResponseBody.pipe(appendToStream("qux")).pipe(res);
+      hijackResponse(res).then(hijackedResponse => {
+        hijackResponse(res).then(hijackedResponse => {
+          hijackedResponse.readable
+            .pipe(appendToStream("qux"))
+            .pipe(hijackedResponse.writable);
         });
-        hijackedResponseBody.pipe(appendToStream("baz")).pipe(res);
+
+        hijackedResponse.readable
+          .pipe(appendToStream("baz"))
+          .pipe(hijackedResponse.writable);
+      });
+
+      res.setHeader("Content-Type", "text/plain");
+
+      let num = 0;
+      const tick = () => {
+        res.write("foo");
+        num += 1;
+        if (num < 5) return setImmediate(tick);
+        res.end("bar");
+      };
+      tick();
+    });
+
+    return expect(request(), "when fulfilled", "to satisfy", {
+      body: "foofoofoofoofoobarbazqux"
+    });
+  });
+
+  it("should be able to hijack an already hijacked response when piping (sequential)", () => {
+    const appendToStream = value =>
+      new stream.Transform({
+        transform(chunk, encoding, cb) {
+          this.push(chunk);
+          cb();
+        },
+        flush(cb) {
+          this.push(Buffer.from(value));
+          cb();
+        }
+      });
+
+    const request = createTestServer((req, res) => {
+      hijackResponse(res).then(hijackedResponse => {
+        hijackedResponse.readable
+          .pipe(appendToStream("qux"))
+          .pipe(hijackedResponse.writable);
+      });
+
+      hijackResponse(res).then(hijackedResponse => {
+        hijackedResponse.readable
+          .pipe(appendToStream("baz"))
+          .pipe(hijackedResponse.writable);
       });
 
       res.setHeader("Content-Type", "text/plain");
