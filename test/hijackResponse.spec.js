@@ -262,22 +262,6 @@ describe("hijackResponse", () => {
       });
     });
 
-    it("should work when called with null", () => {
-      const request = createTestServer((req, res) => {
-        hijackResponse(res).then(hijacked => {
-          hijacked.readable.pipe(hijacked.writable);
-        });
-
-        res.setHeader("content-type", "text/plain");
-        res.write(Buffer.from("foobar"));
-        res.write(null);
-      });
-
-      return expect(request(), "when fulfilled", "to satisfy", {
-        body: "foobar"
-      });
-    });
-
     it("should work when called with a string", () => {
       const request = createTestServer((req, res) => {
         hijackResponse(res).then(hijacked => {
@@ -294,14 +278,14 @@ describe("hijackResponse", () => {
       });
     });
 
-    it("should work when called with a string and an encoding", () => {
+    it("should work when called with a base64 string and encoding arg", () => {
       const request = createTestServer((req, res) => {
         hijackResponse(res).then(hijacked => {
           hijacked.readable.pipe(hijacked.writable);
         });
 
         res.setHeader("content-type", "text/plain");
-        res.write("foobar", "utf-8");
+        res.write(Buffer.from("foobar").toString("base64"), "base64");
         res.end();
       });
 
