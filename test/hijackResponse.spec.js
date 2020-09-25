@@ -179,6 +179,18 @@ describe("hijackResponse", () => {
     });
   });
 
+  it("should not include writable methods from TransformStream on hijackedResponse.readable", () => {
+    const res = new ServerResponse(new IncomingMessage());
+
+    const hijackedResponse = hijackResponse(res);
+
+    res.write("foo");
+
+    return expect(hijackedResponse, "when fulfilled", "to satisfy", {
+      readable: expect.it("not to have property", "writable")
+    });
+  });
+
   it("should write the last chunk", () => {
     const request = createTestServer((req, res) => {
       const next = () => {
