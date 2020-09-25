@@ -18,6 +18,7 @@
     "http-proxy-middleware": "0.17.4",
     "mocha": "^7.2.0",
     "nyc": "^15.1.0",
+    "offline-github-changelog": "^1.7.0",
     "prettier": "^1.19.1",
     "unexpected": "^11.15.0",
     "unexpected-express": "^12.1.1"
@@ -27,6 +28,7 @@
     "coverage:ci": "nyc mocha && nyc report --reporter=lcov",
     "lint": "eslint . && prettier --check '**/*.js'",
     "test": "mocha",
+    "version": "offline-github-changelog --next=${npm_package_version} > CHANGELOG.md && git add CHANGELOG.md",
     "submit-coveralls": "<coverage/lcov.info coveralls"
   },
   "repository": "gustavnikolaj/hijackresponse",
