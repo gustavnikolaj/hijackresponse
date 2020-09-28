@@ -1,3 +1,21 @@
+### v5.0.0 (2020-09-28)
+
+#### Pull requests
+
+- [#29](https://github.com/gustavnikolaj/hijackresponse/pull/29) Use an actual Proxy to create proxyRes ([Gustav Nikolaj Olsen](mailto:gno@one.com))
+- [#30](https://github.com/gustavnikolaj/hijackresponse/pull/30) Proof of concept of promise API ([Gustav Nikolaj Olsen](mailto:gno@one.com))
+- [#24](https://github.com/gustavnikolaj/hijackresponse/pull/24) Split stream rewrite ([Gustav Nikolaj Olsen](mailto:gno@one.com))
+- [#21](https://github.com/gustavnikolaj/hijackresponse/pull/21) Supporting node.js v12 ([Gustav Nikolaj Olsen](mailto:gno@one.com))
+
+#### Commits to master
+
+- [Update example and add API docs](https://github.com/gustavnikolaj/hijackresponse/commit/942a00577a4f71a1689f6037c020fed0fd620c9d) ([Gustav Nikolaj Olsen](mailto:gno@one.com))
+- [Setup automatic changelog generation](https://github.com/gustavnikolaj/hijackresponse/commit/94a197ff519d933ae5fa01916e33785d93ab98cf) ([Gustav Nikolaj Olsen](mailto:gno@one.com))
+- [Use a Symbol for marking hijacked responses](https://github.com/gustavnikolaj/hijackresponse/commit/d41a83bb570fff9a66236f98e23f6c8a5650fb15) ([Gustav Nikolaj Olsen](mailto:gno@one.com))
+- [5.0.0-rc.2](https://github.com/gustavnikolaj/hijackresponse/commit/2f4f1c308774d84c7b2c3c14ca0f35cd096053f1) ([Gustav Nikolaj Olsen](mailto:gno@one.com))
+- [Add jsdoc comments to hijackResponse function](https://github.com/gustavnikolaj/hijackresponse/commit/55bad0747c7b4522fd901d9c1a7dc991793a23e3) ([Gustav Nikolaj Olsen](mailto:gno@one.com))
+- [+31 more](https://github.com/gustavnikolaj/hijackresponse/compare/v4.0.1...v5.0.0)
+
 ### v4.0.1 (2020-09-14)
 
 #### Pull requests
