@@ -16,6 +16,75 @@ var express = require("express");
 var hijackResponse = require("../lib/hijackResponse");
 
 describe("Express Integration Tests", function() {
+  describe("example from the readme", () => {
+    function createReadmeApplication(handler) {
+      var app = express();
+
+      const transformStream = new stream.Transform({
+        transform(chunk, encoding, callback) {
+          const str = Buffer.from(chunk, encoding).toString("utf-8");
+          callback(null, Buffer.from(str.toUpperCase()));
+        }
+      });
+
+      // README hijacking middleware
+      app.use((req, res, next) => {
+        hijackResponse(res, next).then(({ readable, writable }) => {
+          // Don't hijack HTML responses:
+          if (/^text\/html/.test(res.getHeader("Content-Type"))) {
+            return readable.pipe(writable);
+          }
+
+          res.setHeader("X-Hijacked", "yes!");
+          res.removeHeader("Content-Length");
+
+          readable.pipe(transformStream).pipe(writable);
+        });
+      });
+
+      app.use(handler);
+
+      return app;
+    }
+
+    it("example from the readme skipping processing of text/html", () => {
+      return expect(
+        createReadmeApplication((req, res, next) => {
+          res.contentType("text/html");
+          res.send("<h1>foobarbaz</h1>");
+        }),
+        "to yield response",
+        {
+          statusCode: 200,
+          headers: {
+            "Content-Length": 18
+          },
+          body: "<h1>foobarbaz</h1>"
+        }
+      );
+    });
+
+    it("example from the readme processing text/plain", () => {
+      return expect(
+        createReadmeApplication((req, res, next) => {
+          res.contentType("text/plain");
+          res.write("foo");
+          res.write("bar");
+          res.write("baz");
+          res.end();
+        }),
+        "to yield response",
+        {
+          statusCode: 200,
+          headers: {
+            "X-Hijacked": "yes!"
+          },
+          body: "FOOBARBAZ"
+        }
+      );
+    });
+  });
+
   it("simple case", function() {
     var app = express()
       .use(function(req, res, next) {

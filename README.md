@@ -41,21 +41,91 @@ var hijackResponse = require("hijackresponse");
 var app = express();
 
 app.use((req, res, next) => {
-  hijackResponse(res, (hijackedResponseBody, res) => {
+  hijackResponse(res, next).then(({ readable, writable }) => {
     // Don't hijack HTML responses:
-    if (/^text\/html(?:;$)/.test(res.getHeader("Content-Type"))) {
-      return hijackedResponseBody.pipe(res);
+    if (/^text\/html/.test(res.getHeader("Content-Type"))) {
+      return readable.pipe(writable);
     }
 
     res.setHeader("X-Hijacked", "yes!");
     res.removeHeader("Content-Length");
 
-    hijackedResponseBody.pipe(transformStream).pipe(res);
+    readable.pipe(transformStream).pipe(writable);
   });
-  // next() must be called explicitly, even when hijacking the response:
+});
+```
+
+## API
+
+### Function `hijackResponse()`
+
+```
+hijackResponse(res[, cb]) => Promise<HijackedReponse>
+```
+
+The `hijackResponse` function takes one required argument - the response object
+which is the target of the hijacking. The second optional argument, is a
+callback to be called when the hijacking preparations are done; this will mostly
+be used when you are working with express. You can also decide to call the
+callback afterwards if you prefer. The following two examples are equivalent:
+
+```js
+app.use((req, res, next) => {
+  hijackResponse(res, next).then(() => { /* ... */});
+});
+
+app.use((req, res, next) => {
+  hijackResponse(res).then(() => { /* ... */});
   next();
 });
 ```
+
+The first example is easier to work with when you are working with async/await:
+
+```js
+// Using express-promise-router or equivalent
+
+app.use(async (req, res, next) => {
+  const hijackedResponse = await hijackResponse(res, next);
+
+  // ... do something with the hijacked reponse.
+})
+```
+
+### Object `hijackedResponse`
+
+```
+{
+  readable: NodeJS ReadableStream,
+  writable: NodeJS Writable,
+  destroyAndRestore: Function
+}
+```
+
+The resolution value of the Promise returned from calling `hijackResponse`.
+
+- `readable` is a readable stream containing the captured response body.
+- `writable` is a writable stream which will be sent to the client.
+- `destroyAndRestore` is a function that destroys the readable stream, and
+  restores the original res.
+
+Everything written to `res` in other handlers are captured, so if you want to
+delegate to the express errorhandler you need to call `destroyAndRestore` before
+doing so. Calling `destroyAndRestore` will undo the hijack, and destroy the `readable`
+stream, meaning that all data written to it so far is discarded.
+
+```js
+app.use((req, res, next) => {
+  hijackResponse(res, next).then((hijackedResponse) => {
+    hijackedResponse.destroyAndRestore();
+    return next(new Error('Something bad happened'));
+  });
+});
+```
+
+If you don't call `destroyAndRestore` before passing the error to next, the
+errorhandlers output will become available on the `readable`-stream instead of
+being sent to the client as intended.
 
 ## License
 
